@@ -1,328 +1,515 @@
-// api/hooks/useWallet.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { walletService } from '../services/walletService';
 import { useWalletStore } from '../../store/walletStore';
+import { useCurrentAddress } from '../../store/connectionStore';
+import { useWalletAdapter } from '../../hooks/useWalletAdapter';
 import { 
-  CreateWalletParams, 
-  WithdrawParams, 
-  CreateProposalParams,
-  MultiOwnerWallet,
-  OwnerCapability,
-  TransactionProposal,
-  WalletTransaction
+  CreateWalletRequest, 
+  WithdrawRequest, 
+  CreateProposalRequest, 
+  AddOwnerRequest 
 } from '../../types/wallet';
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../constants/config';
 
 // Query keys
-export const walletQueryKeys = {
-  all: ['wallets'] as const,
-  wallet: (id: string) => [...walletQueryKeys.all, 'wallet', id] as const,
-  capabilities: (address: string) => [...walletQueryKeys.all, 'capabilities', address] as const,
-  proposals: (walletId: string) => [...walletQueryKeys.all, 'proposals', walletId] as const,
-  transactions: (walletId: string) => [...walletQueryKeys.all, 'transactions', walletId] as const,
+export const WALLET_QUERY_KEYS = {
+  wallets: ['wallets'] as const,
+  wallet: (id: string) => ['wallet', id] as const,
+  ownerCaps: (address: string) => ['ownerCaps', address] as const,
+  proposals: (walletId: string) => ['proposals', walletId] as const,
+  balances: (walletId: string) => ['balances', walletId] as const,
+  transactions: (walletId: string) => ['transactions', walletId] as const,
+  spendingRecords: (walletId: string, owner: string) => ['spendingRecords', walletId, owner] as const,
+  userCoins: (address: string, coinType?: string) => ['userCoins', address, coinType] as const,
+  userBalance: (address: string, coinType?: string) => ['userBalance', address, coinType] as const,
 };
 
-// Get user's owned capabilities
-export const useOwnerCapabilities = (userAddress: string | null) => {
-  const { setOwnedCapabilities } = useWalletStore();
-  
+/**
+ * Hook to fetch owner capabilities for current user
+ */
+export const useOwnerCapabilities = () => {
+  const currentAddress = useCurrentAddress();
+  const setOwnerCapabilities = useWalletStore((state) => state.setOwnerCapabilities);
+
   return useQuery({
-    queryKey: walletQueryKeys.capabilities(userAddress || ''),
+    queryKey: WALLET_QUERY_KEYS.ownerCaps(currentAddress || ''),
     queryFn: async () => {
-      if (!userAddress) return [];
-      const response = await walletService.getOwnerCapabilities(userAddress);
-      if (response.success) {
-        setOwnedCapabilities(response.data);
-        return response.data;
-      }
-      throw new Error(response.error || 'Failed to fetch capabilities');
+      if (!currentAddress) return [];
+      const caps = await walletService.getOwnerCapabilities(currentAddress);
+      setOwnerCapabilities(currentAddress, caps);
+      return caps;
     },
-    enabled: Boolean(userAddress),
+    enabled: !!currentAddress,
     staleTime: 30000, // 30 seconds
   });
 };
 
-// Get wallet details
-export const useWallet = (walletId: string | null) => {
-  const { addWallet, updateWallet } = useWalletStore();
-  
-  return useQuery({
-    queryKey: walletQueryKeys.wallet(walletId || ''),
-    queryFn: async () => {
-      if (!walletId) return null;
-      const response = await walletService.getWallet(walletId);
-      if (response.success && response.data) {
-        addWallet(response.data);
-        return response.data;
-      }
-      throw new Error(response.error || 'Failed to fetch wallet');
-    },
-    enabled: Boolean(walletId),
-    staleTime: 15000, // 15 seconds
-  });
-};
+/**
+ * Hook to fetch wallet details
+ */
+export const useWallet = (walletId: string) => {
+  const updateWallet = useWalletStore((state) => state.updateWallet);
 
-// Get wallet proposals
-export const useWalletProposals = (walletId: string | null) => {
-  const { setProposals } = useWalletStore();
-  
   return useQuery({
-    queryKey: walletQueryKeys.proposals(walletId || ''),
+    queryKey: WALLET_QUERY_KEYS.wallet(walletId),
     queryFn: async () => {
-      if (!walletId) return [];
-      const response = await walletService.getProposals(walletId);
-      if (response.success) {
-        setProposals(walletId, response.data);
-        return response.data;
+      const wallet = await walletService.getWallet(walletId);
+      if (wallet) {
+        updateWallet(walletId, wallet);
       }
-      throw new Error(response.error || 'Failed to fetch proposals');
+      return wallet;
     },
-    enabled: Boolean(walletId),
+    enabled: !!walletId,
     staleTime: 10000, // 10 seconds
   });
 };
 
-// Get wallet transactions
-export const useWalletTransactions = (walletId: string | null, page: number = 1) => {
-  const { setTransactions } = useWalletStore();
-  
+/**
+ * Hook to fetch wallet proposals
+ */
+export const useWalletProposals = (walletId: string) => {
+  const setProposals = useWalletStore((state) => state.setProposals);
+
   return useQuery({
-    queryKey: [...walletQueryKeys.transactions(walletId || ''), page],
+    queryKey: WALLET_QUERY_KEYS.proposals(walletId),
     queryFn: async () => {
-      if (!walletId) return { data: [], total: 0, page, limit: 20, hasMore: false };
-      const response = await walletService.getWalletTransactions(walletId, page, 20);
-      if (response.success) {
-        if (page === 1) {
-          setTransactions(walletId, response.data.data);
-        }
-        return response.data;
-      }
-      throw new Error(response.error || 'Failed to fetch transactions');
+      const proposals = await walletService.getTransactionProposals(walletId);
+      setProposals(proposals);
+      return proposals;
     },
-    enabled: Boolean(walletId),
+    enabled: !!walletId,
+    staleTime: 15000, // 15 seconds
+  });
+};
+
+/**
+ * Hook to fetch wallet balances
+ */
+export const useWalletBalances = (walletId: string) => {
+  const setWalletBalances = useWalletStore((state) => state.setWalletBalances);
+
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.balances(walletId),
+    queryFn: async () => {
+      const balances = await walletService.getWalletBalances(walletId);
+      setWalletBalances(walletId, balances);
+      return balances;
+    },
+    enabled: !!walletId,
+    staleTime: 20000, // 20 seconds
+  });
+};
+
+/**
+ * Hook to fetch transaction history
+ */
+export const useTransactionHistory = (walletId: string) => {
+  const setTransactionHistory = useWalletStore((state) => state.setTransactionHistory);
+
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.transactions(walletId),
+    queryFn: async () => {
+      const result = await walletService.getTransactionHistory(walletId);
+      setTransactionHistory(walletId, result.transactions);
+      return result;
+    },
+    enabled: !!walletId,
     staleTime: 30000, // 30 seconds
   });
 };
 
-// Mutations
+/**
+ * Hook to fetch spending records
+ */
+export const useSpendingRecords = (walletId: string, ownerAddress: string) => {
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.spendingRecords(walletId, ownerAddress),
+    queryFn: () => walletService.getOwnerSpendingRecord(walletId, ownerAddress),
+    enabled: !!walletId && !!ownerAddress,
+    staleTime: 15000, // 15 seconds
+  });
+};
+
+/**
+ * Hook to fetch user's coins
+ */
+export const useUserCoins = (coinType?: string) => {
+  const currentAddress = useCurrentAddress();
+
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.userCoins(currentAddress || '', coinType),
+    queryFn: async () => {
+      if (!currentAddress) return [];
+      return await walletService.getUserCoins(currentAddress, coinType);
+    },
+    enabled: !!currentAddress,
+    staleTime: 15000, // 15 seconds
+  });
+};
+
+/**
+ * Hook to fetch user's total balance
+ */
+export const useUserBalance = (coinType?: string) => {
+  const currentAddress = useCurrentAddress();
+
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.userBalance(currentAddress || '', coinType),
+    queryFn: async () => {
+      if (!currentAddress) return '0';
+      return await walletService.getUserTotalBalance(currentAddress, coinType);
+    },
+    enabled: !!currentAddress,
+    staleTime: 20000, // 20 seconds
+  });
+};
+
+// ===== Mutation Hooks =====
+
+/**
+ * Hook to create a new wallet
+ */
 export const useCreateWallet = () => {
   const queryClient = useQueryClient();
-  const { userAddress, setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const addWallet = useWalletStore((state) => state.addWallet);
+  const setSelectedWallet = useWalletStore((state) => state.setSelectedWallet);
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
-    mutationFn: async (params: CreateWalletParams) => {
-      const response = await walletService.createWallet(params);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to create wallet');
-      }
-      return response.data;
+    mutationFn: async (request: CreateWalletRequest) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Creating wallet...');
+      
+      const transaction = walletService.buildCreateWalletTransaction(request);
+      const result = await signAndExecuteTransaction(transaction);
+      
+      return { result, request };
     },
-    onSuccess: () => {
-      // Invalidate capabilities query to refetch new wallet
-      if (userAddress) {
-        queryClient.invalidateQueries({ 
-          queryKey: walletQueryKeys.capabilities(userAddress) 
-        });
+    onSuccess: async (data) => {
+      const { result, request } = data;
+      
+      try {
+        // Extract wallet ID from transaction effects
+        const walletId = extractWalletIdFromTransaction(result);
+        
+        if (walletId) {
+          // Fetch the created wallet details
+          const walletDetails = await walletService.getWallet(walletId);
+          
+          if (walletDetails) {
+            // Add wallet to store
+            addWallet(walletDetails);
+            
+            // Set as selected wallet
+            setSelectedWallet(walletId);
+            
+            toast.success(SUCCESS_MESSAGES.WALLET_CREATED);
+          } else {
+            // Fallback: create a basic wallet object
+            const mockWallet = {
+              objectId: walletId,
+              balance: '0',
+              owners: request.initialOwners,
+              requiredApprovals: request.requiredApprovals,
+              createdAt: Date.now(),
+              resetPeriodMs: request.resetPeriodMs,
+              version: '1',
+              digest: result.digest,
+            };
+            addWallet(mockWallet);
+            setSelectedWallet(walletId);
+            toast.success(SUCCESS_MESSAGES.WALLET_CREATED);
+          }
+        } else {
+          toast.success(SUCCESS_MESSAGES.WALLET_CREATED);
+        }
+      } catch (error) {
+        console.error('Failed to fetch created wallet:', error);
+        // Still show success since wallet was created
+        toast.success(SUCCESS_MESSAGES.WALLET_CREATED);
       }
-      setError(null);
+      
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallets });
+      if (currentAddress) {
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.ownerCaps(currentAddress) });
+      }
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error) => {
+      console.error('Create wallet error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };
 
-export const useDeposit = () => {
+/**
+ * Extract wallet ID from transaction result
+ */
+function extractWalletIdFromTransaction(result: any): string | null {
+  try {
+    // Look for created objects in the transaction effects
+    if (result.effects?.created) {
+      for (const created of result.effects.created) {
+        // Look for the wallet object (usually the shared object)
+        if (created.reference?.objectId) {
+          return created.reference.objectId;
+        }
+      }
+    }
+    
+    // Alternative: look in object changes
+    if (result.objectChanges) {
+      for (const change of result.objectChanges) {
+        if (change.type === 'created' && change.objectType?.includes('Wallet')) {
+          return change.objectId;
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Failed to extract wallet ID:', error);
+    return null;
+  }
+}
+
+/**
+ * Hook to deposit coins into wallet
+ */
+export const useDepositToWallet = () => {
   const queryClient = useQueryClient();
-  const { setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
-    mutationFn: async ({ walletId, amount }: { walletId: string; amount: string }) => {
-      const response = await walletService.deposit(walletId, amount);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to deposit');
+    mutationFn: async ({ walletId, coinObjectId }: { walletId: string; coinObjectId: string }) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Processing deposit...');
+      
+      const transaction = walletService.buildDepositTransaction(walletId, coinObjectId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
+    },
+    onSuccess: (result, variables) => {
+      toast.success('Deposit successful');
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallet(variables.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.balances(variables.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.transactions(variables.walletId) });
+      if (currentAddress) {
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.userCoins(currentAddress) });
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.userBalance(currentAddress) });
       }
-      return response.data;
     },
-    onSuccess: (_, variables) => {
-      // Invalidate wallet query to refetch updated balance
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.wallet(variables.walletId) 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.transactions(variables.walletId) 
-      });
-      setError(null);
+    onError: (error) => {
+      console.error('Deposit error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };
 
+/**
+ * Hook to withdraw from wallet
+ */
 export const useWithdraw = () => {
   const queryClient = useQueryClient();
-  const { setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
-    mutationFn: async ({ params, ownerCapId }: { params: WithdrawParams; ownerCapId: string }) => {
-      const response = await walletService.withdraw(params, ownerCapId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to withdraw');
+    mutationFn: async ({ request, ownerCapId }: { request: WithdrawRequest; ownerCapId: string }) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Processing withdrawal...');
+      
+      const transaction = walletService.buildWithdrawTransaction(request, ownerCapId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
+    },
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.TRANSACTION_SENT);
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallet(variables.request.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.balances(variables.request.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.transactions(variables.request.walletId) });
+      if (currentAddress) {
+        queryClient.invalidateQueries({ 
+          queryKey: WALLET_QUERY_KEYS.spendingRecords(variables.request.walletId, currentAddress) 
+        });
       }
-      return response.data;
     },
-    onSuccess: (_, variables) => {
-      // Invalidate wallet query to refetch updated balance
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.wallet(variables.params.walletId) 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.transactions(variables.params.walletId) 
-      });
-      setError(null);
+    onError: (error) => {
+      console.error('Withdraw error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };
 
+/**
+ * Hook to create a proposal
+ */
 export const useCreateProposal = () => {
   const queryClient = useQueryClient();
-  const { setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
-    mutationFn: async ({ params, ownerCapId }: { params: CreateProposalParams; ownerCapId: string }) => {
-      const response = await walletService.createProposal(params, ownerCapId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to create proposal');
-      }
-      return response.data;
+    mutationFn: async ({ request, ownerCapId }: { request: CreateProposalRequest; ownerCapId: string }) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Creating proposal...');
+      
+      const transaction = walletService.buildCreateProposalTransaction(request, ownerCapId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
     },
-    onSuccess: (_, variables) => {
-      // Invalidate proposals query to refetch with new proposal
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.proposals(variables.params.walletId) 
-      });
-      setError(null);
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.PROPOSAL_CREATED);
+      // Invalidate proposals query
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.proposals(variables.request.walletId) });
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error) => {
+      console.error('Create proposal error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };
 
+/**
+ * Hook to approve a proposal
+ */
 export const useApproveProposal = () => {
   const queryClient = useQueryClient();
-  const { setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
-    mutationFn: async ({ 
-      walletId, 
-      proposalId, 
-      ownerCapId 
-    }: { 
+    mutationFn: async ({ walletId, proposalId, ownerCapId }: { 
       walletId: string; 
       proposalId: string; 
       ownerCapId: string; 
     }) => {
-      const response = await walletService.approveProposal(walletId, proposalId, ownerCapId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to approve proposal');
-      }
-      return response.data;
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Approving proposal...');
+      
+      const transaction = walletService.buildApproveProposalTransaction(walletId, proposalId, ownerCapId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
     },
-    onSuccess: (_, variables) => {
-      // Invalidate proposals query to refetch updated proposal
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.proposals(variables.walletId) 
-      });
-      setError(null);
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.PROPOSAL_APPROVED);
+      // Invalidate proposals query
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.proposals(variables.walletId) });
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error) => {
+      console.error('Approve proposal error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };
 
+/**
+ * Hook to execute a proposal
+ */
 export const useExecuteProposal = () => {
   const queryClient = useQueryClient();
-  const { setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
-    mutationFn: async ({ 
-      walletId, 
-      proposalId, 
-      ownerCapId 
-    }: { 
+    mutationFn: async ({ walletId, proposalId, ownerCapId }: { 
       walletId: string; 
       proposalId: string; 
       ownerCapId: string; 
     }) => {
-      const response = await walletService.executeProposal(walletId, proposalId, ownerCapId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to execute proposal');
-      }
-      return response.data;
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Executing proposal...');
+      
+      const transaction = walletService.buildExecuteProposalTransaction(walletId, proposalId, ownerCapId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.PROPOSAL_EXECUTED);
       // Invalidate multiple queries
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.proposals(variables.walletId) 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.wallet(variables.walletId) 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.transactions(variables.walletId) 
-      });
-      setError(null);
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.proposals(variables.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallet(variables.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.balances(variables.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.transactions(variables.walletId) });
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error) => {
+      console.error('Execute proposal error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };
 
+/**
+ * Hook to add owner
+ */
 export const useAddOwner = () => {
   const queryClient = useQueryClient();
-  const { setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
-    mutationFn: async ({ 
-      walletId, 
-      newOwner, 
-      spendingLimit, 
-      ownerCapId 
-    }: { 
-      walletId: string; 
-      newOwner: string; 
-      spendingLimit: string; 
-      ownerCapId: string; 
-    }) => {
-      const response = await walletService.addOwner(walletId, newOwner, spendingLimit, ownerCapId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to add owner');
-      }
-      return response.data;
+    mutationFn: async ({ request, ownerCapId }: { request: AddOwnerRequest; ownerCapId: string }) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Adding owner...');
+      
+      const transaction = walletService.buildAddOwnerTransaction(request, ownerCapId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
     },
-    onSuccess: (_, variables) => {
-      // Invalidate wallet query to refetch updated owners
-      queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.wallet(variables.walletId) 
-      });
-      setError(null);
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.OWNER_ADDED);
+      // Invalidate wallet query
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallet(variables.request.walletId) });
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error) => {
+      console.error('Add owner error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };
 
+/**
+ * Hook to update spending limit
+ */
 export const useUpdateSpendingLimit = () => {
   const queryClient = useQueryClient();
-  const { setError } = useWalletStore();
-  
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
   return useMutation({
     mutationFn: async ({ 
       walletId, 
@@ -335,21 +522,31 @@ export const useUpdateSpendingLimit = () => {
       newLimit: string; 
       ownerCapId: string; 
     }) => {
-      const response = await walletService.updateSpendingLimit(walletId, ownerToUpdate, newLimit, ownerCapId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to update spending limit');
-      }
-      return response.data;
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Updating spending limit...');
+      
+      const transaction = walletService.buildUpdateSpendingLimitTransaction(
+        walletId, 
+        ownerToUpdate, 
+        newLimit, 
+        ownerCapId
+      );
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
     },
-    onSuccess: (_, variables) => {
-      // Invalidate wallet query to refetch updated limits
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.LIMIT_UPDATED);
+      // Invalidate spending records query
       queryClient.invalidateQueries({ 
-        queryKey: walletQueryKeys.wallet(variables.walletId) 
+        queryKey: WALLET_QUERY_KEYS.spendingRecords(variables.walletId, variables.ownerToUpdate) 
       });
-      setError(null);
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error) => {
+      console.error('Update spending limit error:', error);
+      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
     },
   });
 };

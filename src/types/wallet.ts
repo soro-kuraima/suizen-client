@@ -1,94 +1,158 @@
-// types/wallet.ts
-export interface WalletOwner {
-  address: string;
-  spendingLimit: string; // Using string for big numbers
-  spentAmount: string;
-  lastReset: string;
+import { SuiObjectRef, SuiObjectData, ObjectOwner } from '@mysten/sui/client';
+
+// Base wallet interfaces
+export interface WalletBalance {
+  coinType: string;
+  balance: string;
+  decimals: number;
+  symbol: string;
+  iconUrl?: string;
 }
 
-export interface MultiOwnerWallet {
-  id: string;
+export interface TransactionRecord {
+  digest: string;
+  timestamp: number;
+  sender: string;
+  recipients: string[];
+  amount: string;
+  coinType: string;
+  status: 'success' | 'failed' | 'pending';
+  type: 'send' | 'receive' | 'multi_sig';
+}
+
+// Multi-owner wallet specific types
+export interface MultiOwnerWallet extends SuiObjectData {
   balance: string;
   owners: string[];
   requiredApprovals: number;
-  createdAt: string;
-  resetPeriodMs: string;
+  createdAt: number;
+  resetPeriodMs: number;
 }
 
-export interface OwnerCapability {
-  id: string;
-  walletId: string;
+export interface OwnerSpendingRecord {
   owner: string;
+  spentAmount: string;
+  spendingLimit: string;
+  lastReset: number;
 }
 
-export interface TransactionProposal {
-  id: string;
+export interface OwnerCap extends SuiObjectData {
+  walletId: string;
+  owner: ObjectOwner;
+}
+
+export interface TransactionProposal extends SuiObjectData {
   walletId: string;
   recipient: string;
   amount: string;
   approvals: string[];
-  expiration?: string;
-  creator: string;
-  createdAt: string;
+  expiration?: number;
 }
 
-export interface WalletTransaction {
-  id: string;
-  type: 'deposit' | 'withdraw' | 'proposal_created' | 'proposal_executed';
-  amount: string;
-  sender: string;
-  recipient?: string;
-  timestamp: string;
-  blockHeight: number;
-  success: boolean;
-}
-
-export interface CreateWalletParams {
+// Wallet creation and management types
+export interface CreateWalletRequest {
   initialOwners: string[];
   initialLimits: string[];
   requiredApprovals: number;
-  resetPeriodMs: string;
+  resetPeriodMs: number;
 }
 
-export interface WithdrawParams {
+export interface WithdrawRequest {
   walletId: string;
   recipient: string;
   amount: string;
 }
 
-export interface CreateProposalParams {
+export interface CreateProposalRequest {
   walletId: string;
   recipient: string;
   amount: string;
-  expirationMs?: string;
+  expirationMs?: number;
+}
+
+export interface AddOwnerRequest {
+  walletId: string;
+  newOwner: string;
+  spendingLimit: string;
+}
+
+// UI State types
+export interface WalletUIState {
+  selectedWallet: MultiOwnerWallet | null;
+  isLoading: boolean;
+  error: string | null;
+  showCreateWallet: boolean;
+  showSendTransaction: boolean;
+  showProposals: boolean;
+}
+
+// Network and connection types
+export interface NetworkConfig {
+  name: string;
+  rpcUrl: string;
+  packageAddress: string;
+  explorerUrl: string;
+}
+
+export type WalletConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+export interface WalletConnection {
+  address: string | null;
+  status: WalletConnectionStatus;
+  walletName: string | null;
 }
 
 // API Response types
 export interface ApiResponse<T> {
-  data: T;
   success: boolean;
+  data?: T;
   error?: string;
 }
 
 export interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
+  nextCursor?: string;
   hasMore: boolean;
 }
 
-// Sui-specific types
-export interface SuiObjectRef {
-  objectId: string;
-  version: string;
-  digest: string;
+// Event types from smart contracts
+export interface WalletCreatedEvent {
+  walletId: string;
+  creator: string;
+  requiredApprovals: number;
+  resetPeriodMs: number;
 }
 
-export interface WalletEvent {
-  id: string;
-  type: string;
-  data: Record<string, any>;
-  timestamp: string;
-  transactionDigest: string;
+export interface CoinDepositedEvent {
+  walletId: string;
+  depositor: string;
+  amount: string;
+}
+
+export interface CoinWithdrawnEvent {
+  walletId: string;
+  sender: string;
+  recipient: string;
+  amount: string;
+  requiredMultiSig: boolean;
+}
+
+export interface ProposalCreatedEvent {
+  proposalId: string;
+  walletId: string;
+  creator: string;
+  recipient: string;
+  amount: string;
+}
+
+export interface ProposalApprovedEvent {
+  proposalId: string;
+  approver: string;
+}
+
+export interface ProposalExecutedEvent {
+  proposalId: string;
+  walletId: string;
+  recipient: string;
+  amount: string;
 }

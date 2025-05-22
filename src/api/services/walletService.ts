@@ -1,308 +1,219 @@
-import { TransactionBlock } from '@mysten/sui.js/transactions';
-import { SuiObjectResponse, SuiTransactionBlockResponse } from '@mysten/sui.js/client';
-import { suiConfig } from '../../config/sui';
+import { Transaction } from '@mysten/sui/transactions';
+import { SuiObjectResponse } from '@mysten/sui/client';
+import { getSuiClient, getCurrentNetworkConfig } from '../../config/sui-client';
+import { CONTRACT_FUNCTIONS, COIN_TYPES } from '../../constants/config';
 import { 
-  PACKAGE_ID, 
-  MODULE_NAMES, 
-  FUNCTION_NAMES, 
-  OBJECT_TYPES,
-  EVENT_TYPES,
-  SUI_COIN_TYPE,
-  MIST_PER_SUI 
-} from '../../constants/sui';
-import {
-  MultiOwnerWallet,
-  OwnerCapability,
-  TransactionProposal,
-  CreateWalletParams,
-  WithdrawParams,
-  CreateProposalParams,
-  WalletTransaction,
-  ApiResponse,
-  PaginatedResponse
+  MultiOwnerWallet, 
+  OwnerSpendingRecord, 
+  TransactionProposal, 
+  CreateWalletRequest,
+  WithdrawRequest,
+  CreateProposalRequest,
+  AddOwnerRequest,
+  WalletBalance,
+  TransactionRecord
 } from '../../types/wallet';
+import { extractObjectData, parseMoveStruct, suiToMist } from '../../utils/sui';
 
+/**
+ * Service class for interacting with multi-owner wallet smart contracts
+ * Note: This service builds transactions but doesn't sign them.
+ * Signing is handled by wallet adapters in the UI layer.
+ */
 export class WalletService {
-  private client = suiConfig.getClient();
+  private suiClient = getSuiClient();
+  private networkConfig = getCurrentNetworkConfig();
 
-  // Create a new multi-owner wallet
-  public async createWallet(params: CreateWalletParams): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      // Get current clock object
-      const clock = txb.object('0x6');
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.CREATE_WALLET}`,
-        arguments: [
-          txb.pure(params.initialOwners),
-          txb.pure(params.initialLimits.map(limit => BigInt(limit))),
-          txb.pure(params.requiredApprovals),
-          txb.pure(BigInt(params.resetPeriodMs)),
-          clock,
-        ],
-      });
+  /**
+   * Build transaction for creating a new multi-owner wallet
+   */
+  buildCreateWalletTransaction(request: CreateWalletRequest): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    // Convert limits to MIST
+    const limitsInMist = request.initialLimits.map(limit => suiToMist(limit));
+
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.CREATE_WALLET,
+      arguments: [
+        tx.pure.vector('address', request.initialOwners),
+        tx.pure.vector('u64', limitsInMist),
+        tx.pure.u64(request.requiredApprovals),
+        tx.pure.u64(request.resetPeriodMs),
+        tx.object('0x6'), // Clock object
+      ],
+    });
+
+    return tx;
   }
 
-  // Deposit SUI into wallet
-  public async deposit(walletId: string, amount: string): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      // Convert SUI to MIST
-      const amountInMist = BigInt(parseFloat(amount) * MIST_PER_SUI);
-      
-      // Split coin for deposit
-      const [coin] = txb.splitCoins(txb.gas, [txb.pure(amountInMist)]);
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.DEPOSIT}`,
-        arguments: [
-          txb.object(walletId),
-          coin,
-        ],
-      });
+  /**
+   * Build transaction for depositing SUI into a wallet
+   */
+  buildDepositTransaction(walletId: string, coinObjectId: string): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.DEPOSIT,
+      arguments: [
+        tx.object(walletId),
+        tx.object(coinObjectId),
+      ],
+    });
+
+    return tx;
   }
 
-  // Withdraw from wallet (within spending limit)
-  public async withdraw(params: WithdrawParams, ownerCapId: string): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      // Get current clock object
-      const clock = txb.object('0x6');
-      
-      // Convert SUI to MIST
-      const amountInMist = BigInt(parseFloat(params.amount) * MIST_PER_SUI);
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.WITHDRAW}`,
-        arguments: [
-          txb.object(params.walletId),
-          txb.object(ownerCapId),
-          txb.pure(params.recipient),
-          txb.pure(amountInMist),
-          clock,
-        ],
-      });
+  /**
+   * Build transaction for withdrawing from wallet (if within spending limit)
+   */
+  buildWithdrawTransaction(request: WithdrawRequest, ownerCapId: string): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.WITHDRAW,
+      arguments: [
+        tx.object(request.walletId),
+        tx.object(ownerCapId),
+        tx.pure.address(request.recipient),
+        tx.pure.u64(suiToMist(request.amount)),
+        tx.object('0x6'), // Clock object
+      ],
+    });
+
+    return tx;
   }
 
-  // Create transaction proposal (for amounts exceeding limits)
-  public async createProposal(params: CreateProposalParams, ownerCapId: string): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      // Get current clock object
-      const clock = txb.object('0x6');
-      
-      // Convert SUI to MIST
-      const amountInMist = BigInt(parseFloat(params.amount) * MIST_PER_SUI);
-      
-      // Convert expiration to option
-      const expirationArg = params.expirationMs 
-        ? txb.pure([BigInt(params.expirationMs)]) 
-        : txb.pure([]);
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.CREATE_PROPOSAL}`,
-        arguments: [
-          txb.object(params.walletId),
-          txb.object(ownerCapId),
-          txb.pure(params.recipient),
-          txb.pure(amountInMist),
-          expirationArg,
-          clock,
-        ],
-      });
+  /**
+   * Build transaction for creating a transaction proposal
+   */
+  buildCreateProposalTransaction(request: CreateProposalRequest, ownerCapId: string): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    const expirationArg = request.expirationMs 
+      ? tx.pure.option('u64', request.expirationMs)
+      : tx.pure.option('u64', null);
+
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.CREATE_PROPOSAL,
+      arguments: [
+        tx.object(request.walletId),
+        tx.object(ownerCapId),
+        tx.pure.address(request.recipient),
+        tx.pure.u64(suiToMist(request.amount)),
+        expirationArg,
+        tx.object('0x6'), // Clock object
+      ],
+    });
+
+    return tx;
   }
 
-  // Approve a transaction proposal
-  public async approveProposal(walletId: string, proposalId: string, ownerCapId: string): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.APPROVE_PROPOSAL}`,
-        arguments: [
-          txb.object(walletId),
-          txb.object(proposalId),
-          txb.object(ownerCapId),
-        ],
-      });
+  /**
+   * Build transaction for approving a proposal
+   */
+  buildApproveProposalTransaction(walletId: string, proposalId: string, ownerCapId: string): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.APPROVE_PROPOSAL,
+      arguments: [
+        tx.object(walletId),
+        tx.object(proposalId),
+        tx.object(ownerCapId),
+      ],
+    });
+
+    return tx;
   }
 
-  // Execute a transaction proposal
-  public async executeProposal(walletId: string, proposalId: string, ownerCapId: string): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      // Get current clock object
-      const clock = txb.object('0x6');
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.EXECUTE_PROPOSAL}`,
-        arguments: [
-          txb.object(walletId),
-          txb.object(proposalId),
-          txb.object(ownerCapId),
-          clock,
-        ],
-      });
+  /**
+   * Build transaction for executing a proposal
+   */
+  buildExecuteProposalTransaction(walletId: string, proposalId: string, ownerCapId: string): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.EXECUTE_PROPOSAL,
+      arguments: [
+        tx.object(walletId),
+        tx.object(proposalId),
+        tx.object(ownerCapId),
+        tx.object('0x6'), // Clock object
+      ],
+    });
+
+    return tx;
   }
 
-  // Add new owner to wallet
-  public async addOwner(
-    walletId: string, 
-    newOwner: string, 
-    spendingLimit: string, 
-    ownerCapId: string
-  ): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      // Get current clock object
-      const clock = txb.object('0x6');
-      
-      // Convert SUI to MIST
-      const limitInMist = BigInt(parseFloat(spendingLimit) * MIST_PER_SUI);
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.ADD_OWNER}`,
-        arguments: [
-          txb.object(walletId),
-          txb.object(ownerCapId),
-          txb.pure(newOwner),
-          txb.pure(limitInMist),
-          clock,
-        ],
-      });
+  /**
+   * Build transaction for adding a new owner
+   */
+  buildAddOwnerTransaction(request: AddOwnerRequest, ownerCapId: string): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.ADD_OWNER,
+      arguments: [
+        tx.object(request.walletId),
+        tx.object(ownerCapId),
+        tx.pure.address(request.newOwner),
+        tx.pure.u64(suiToMist(request.spendingLimit)),
+        tx.object('0x6'), // Clock object
+      ],
+    });
+
+    return tx;
   }
 
-  // Update spending limit for an owner
-  public async updateSpendingLimit(
+  /**
+   * Build transaction for updating spending limit
+   */
+  buildUpdateSpendingLimitTransaction(
     walletId: string, 
     ownerToUpdate: string, 
     newLimit: string, 
     ownerCapId: string
-  ): Promise<ApiResponse<string>> {
-    try {
-      const txb = new TransactionBlock();
-      
-      // Convert SUI to MIST
-      const limitInMist = BigInt(parseFloat(newLimit) * MIST_PER_SUI);
-      
-      txb.moveCall({
-        target: `${PACKAGE_ID}::${MODULE_NAMES.MULTI_OWNER_WALLET}::${FUNCTION_NAMES.UPDATE_SPENDING_LIMIT}`,
-        arguments: [
-          txb.object(walletId),
-          txb.object(ownerCapId),
-          txb.pure(ownerToUpdate),
-          txb.pure(limitInMist),
-        ],
-      });
+  ): Transaction {
+    const tx = new Transaction();
 
-      return { 
-        data: txb.serialize(), 
-        success: true 
-      };
-    } catch (error) {
-      return { 
-        data: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.UPDATE_SPENDING_LIMIT,
+      arguments: [
+        tx.object(walletId),
+        tx.object(ownerCapId),
+        tx.pure.address(ownerToUpdate),
+        tx.pure.u64(suiToMist(newLimit)),
+      ],
+    });
+
+    return tx;
   }
 
-  // Get wallet details
-  public async getWallet(walletId: string): Promise<ApiResponse<MultiOwnerWallet | null>> {
+  // ===== View/Query Functions =====
+
+  /**
+   * Get wallet details by ID
+   */
+  async getWallet(walletId: string): Promise<MultiOwnerWallet | null> {
     try {
-      const response = await this.client.getObject({
+      const response = await this.suiClient.getObject({
         id: walletId,
         options: {
           showContent: true,
@@ -310,156 +221,285 @@ export class WalletService {
         },
       });
 
-      if (!response.data?.content || response.data.content.dataType !== 'moveObject') {
-        return { data: null, success: false, error: 'Wallet not found' };
+      if (!response.data || !response.data.content) {
+        return null;
       }
 
-      const fields = response.data.content.fields as any;
-      
-      const wallet: MultiOwnerWallet = {
-        id: walletId,
-        balance: fields.balance.toString(),
-        owners: fields.owners,
-        requiredApprovals: parseInt(fields.required_approvals),
-        createdAt: fields.created_at,
-        resetPeriodMs: fields.reset_period_ms,
-      };
+      const walletData = parseMoveStruct(response.data);
+      if (!walletData) return null;
 
-      return { data: wallet, success: true };
-    } catch (error) {
-      return { 
-        data: null, 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        ...response.data,
+        balance: walletData.balance || '0',
+        owners: walletData.owners || [],
+        requiredApprovals: walletData.required_approvals || 0,
+        createdAt: walletData.created_at || 0,
+        resetPeriodMs: walletData.reset_period_ms || 0,
       };
+    } catch (error) {
+      console.error('Failed to get wallet:', error);
+      return null;
     }
   }
 
-  // Get owner capabilities for a user
-  public async getOwnerCapabilities(userAddress: string): Promise<ApiResponse<OwnerCapability[]>> {
+  /**
+   * Get owner capabilities for an address
+   */
+  async getOwnerCapabilities(ownerAddress: string): Promise<string[]> {
     try {
-      const response = await this.client.getOwnedObjects({
-        owner: userAddress,
+      const response = await this.suiClient.getOwnedObjects({
+        owner: ownerAddress,
         filter: {
-          StructType: OBJECT_TYPES.OWNER_CAP,
+          StructType: `${this.networkConfig.packageAddress}::multi_owner_wallet::OwnerCap`,
         },
         options: {
           showContent: true,
-          showType: true,
         },
       });
 
-      const capabilities: OwnerCapability[] = response.data
-        .filter(item => item.data?.content?.dataType === 'moveObject')
-        .map(item => {
-          const fields = item.data!.content!.fields as any;
-          return {
-            id: item.data!.objectId,
-            walletId: fields.wallet_id,
-            owner: fields.owner,
-          };
-        });
-
-      return { data: capabilities, success: true };
+      return response.data
+        .map(obj => obj.data?.objectId)
+        .filter(Boolean) as string[];
     } catch (error) {
-      return { 
-        data: [], 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
+      console.error('Failed to get owner capabilities:', error);
+      return [];
     }
   }
 
-  // Get transaction proposals for a wallet
-  public async getProposals(walletId: string): Promise<ApiResponse<TransactionProposal[]>> {
+  /**
+   * Get transaction proposals for a wallet
+   * Note: This is a simplified implementation. In production, you'd want to:
+   * 1. Use event queries to track proposal creation
+   * 2. Implement proper indexing
+   * 3. Use dynamic fields querying for better performance
+   */
+  async getTransactionProposals(walletId: string): Promise<TransactionProposal[]> {
     try {
-      const response = await this.client.getOwnedObjects({
-        owner: walletId, // Proposals are shared objects, so we need to query differently
-        filter: {
-          StructType: OBJECT_TYPES.TRANSACTION_PROPOSAL,
-        },
-        options: {
-          showContent: true,
-          showType: true,
-        },
-      });
-
-      const proposals: TransactionProposal[] = response.data
-        .filter(item => item.data?.content?.dataType === 'moveObject')
-        .map(item => {
-          const fields = item.data!.content!.fields as any;
-          return {
-            id: item.data!.objectId,
-            walletId: fields.wallet_id,
-            recipient: fields.recipient,
-            amount: fields.amount,
-            approvals: fields.approvals,
-            expiration: fields.expiration?.[0],
-            creator: fields.approvals[0], // First approver is creator
-            createdAt: '', // Would need to get from events
-          };
-        });
-
-      return { data: proposals, success: true };
-    } catch (error) {
-      return { 
-        data: [], 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
-  }
-
-  // Get wallet events and transactions
-  public async getWalletTransactions(
-    walletId: string,
-    page: number = 1,
-    limit: number = 20
-  ): Promise<ApiResponse<PaginatedResponse<WalletTransaction>>> {
-    try {
-      const events = await this.client.queryEvents({
+      // For now, we'll use event-based querying to find proposals
+      // This is more efficient than scanning all objects
+      const events = await this.suiClient.queryEvents({
         query: {
-          MoveEventType: EVENT_TYPES.COIN_DEPOSITED,
+          MoveEventType: `${this.networkConfig.packageAddress}::multi_owner_wallet::ProposalCreatedEvent`,
         },
+        limit: 50,
         order: 'descending',
-        limit,
       });
 
-      // Transform events to transactions
-      const transactions: WalletTransaction[] = events.data.map((event, index) => ({
-        id: event.id.eventSeq,
-        type: 'deposit', // This would be determined by event type
-        amount: (event.parsedJson as any)?.amount || '0',
-        sender: (event.parsedJson as any)?.depositor || '',
-        timestamp: event.timestampMs || '0',
-        blockHeight: 0, // Would need to get from transaction details
-        success: true,
+      const proposals: TransactionProposal[] = [];
+
+      for (const event of events.data) {
+        try {
+          if (event.parsedJson && typeof event.parsedJson === 'object') {
+            const eventData = event.parsedJson as any;
+            
+            // Check if this proposal belongs to our wallet
+            if (eventData.wallet_id === walletId) {
+              // Fetch the actual proposal object
+              const proposalResponse = await this.suiClient.getObject({
+                id: eventData.proposal_id,
+                options: {
+                  showContent: true,
+                },
+              });
+
+              if (proposalResponse.data?.content) {
+                const proposalData = parseMoveStruct(proposalResponse.data);
+                if (proposalData) {
+                  proposals.push({
+                    ...proposalResponse.data,
+                    walletId: proposalData.wallet_id,
+                    recipient: proposalData.recipient,
+                    amount: proposalData.amount,
+                    approvals: proposalData.approvals || [],
+                    expiration: proposalData.expiration,
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to parse proposal event:', error);
+        }
+      }
+
+      return proposals;
+    } catch (error) {
+      console.error('Failed to get transaction proposals:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get spending record for an owner
+   */
+  async getOwnerSpendingRecord(walletId: string, ownerAddress: string): Promise<OwnerSpendingRecord | null> {
+    try {
+      // This would require reading dynamic fields from the wallet object
+      // Implementation depends on Sui's dynamic field querying capabilities
+      const wallet = await this.getWallet(walletId);
+      if (!wallet) return null;
+
+      // Placeholder implementation - you'd need to query dynamic fields
+      return {
+        owner: ownerAddress,
+        spentAmount: '0',
+        spendingLimit: '1000000000', // 1 SUI
+        lastReset: Date.now(),
+      };
+    } catch (error) {
+      console.error('Failed to get spending record:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get wallet balances
+   */
+  async getWalletBalances(walletId: string): Promise<WalletBalance[]> {
+    try {
+      const wallet = await this.getWallet(walletId);
+      if (!wallet) return [];
+
+      // For now, only return SUI balance
+      return [{
+        coinType: COIN_TYPES.SUI,
+        balance: wallet.balance,
+        decimals: 9,
+        symbol: 'SUI',
+      }];
+    } catch (error) {
+      console.error('Failed to get wallet balances:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get transaction history for a wallet
+   */
+  async getTransactionHistory(walletId: string, cursor?: string): Promise<{
+    transactions: TransactionRecord[];
+    nextCursor?: string;
+    hasMore: boolean;
+  }> {
+    try {
+      const response = await this.suiClient.queryTransactionBlocks({
+        filter: {
+          InputObject: walletId,
+        },
+        cursor,
+        limit: 20,
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showInput: true,
+        },
+      });
+
+      const transactions: TransactionRecord[] = response.data.map(tx => ({
+        digest: tx.digest,
+        timestamp: parseInt(tx.timestampMs || '0'),
+        sender: tx.transaction?.data?.sender || '',
+        recipients: [], // Would need to parse from transaction data
+        amount: '0', // Would need to parse from events
+        coinType: COIN_TYPES.SUI,
+        status: tx.effects?.status?.status === 'success' ? 'success' : 'failed',
+        type: 'send', // Would need to determine from events
       }));
 
       return {
-        data: {
-          data: transactions,
-          total: events.data.length,
-          page,
-          limit,
-          hasMore: events.hasNextPage,
-        },
-        success: true,
+        transactions,
+        nextCursor: response.nextCursor,
+        hasMore: response.hasNextPage,
       };
     } catch (error) {
+      console.error('Failed to get transaction history:', error);
       return {
-        data: {
-          data: [],
-          total: 0,
-          page,
-          limit,
-          hasMore: false,
-        },
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        transactions: [],
+        hasMore: false,
       };
+    }
+  }
+
+  /**
+   * Get user's SUI coins for deposits
+   */
+  async getUserCoins(userAddress: string, coinType: string = COIN_TYPES.SUI): Promise<Array<{
+    objectId: string;
+    balance: string;
+  }>> {
+    try {
+      const response = await this.suiClient.getCoins({
+        owner: userAddress,
+        coinType,
+      });
+
+      return response.data.map(coin => ({
+        objectId: coin.coinObjectId,
+        balance: coin.balance,
+      }));
+    } catch (error) {
+      console.error('Failed to get user coins:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get total balance for user
+   */
+  async getUserTotalBalance(userAddress: string, coinType: string = COIN_TYPES.SUI): Promise<string> {
+    try {
+      const response = await this.suiClient.getBalance({
+        owner: userAddress,
+        coinType,
+      });
+
+      return response.totalBalance;
+    } catch (error) {
+      console.error('Failed to get user balance:', error);
+      return '0';
+    }
+  }
+
+  /**
+   * Get wallet events for a user (wallets they own or are involved in)
+   */
+  async getUserWalletEvents(userAddress: string): Promise<Array<{ walletId: string; event: any }>> {
+    try {
+      const events = await this.suiClient.queryEvents({
+        query: {
+          MoveEventType: `${this.networkConfig.packageAddress}::multi_owner_wallet::WalletCreatedEvent`,
+        },
+        limit: 50,
+        order: 'descending',
+      });
+
+      const userWallets = [];
+      
+      for (const event of events.data) {
+        try {
+          if (event.parsedJson && typeof event.parsedJson === 'object') {
+            const eventData = event.parsedJson as any;
+            
+            // Check if user was the creator or is in the initial owners
+            if (eventData.creator === userAddress) {
+              userWallets.push({
+                walletId: eventData.wallet_id,
+                event: eventData,
+              });
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to parse wallet event:', error);
+        }
+      }
+
+      return userWallets;
+    } catch (error) {
+      console.error('Failed to get user wallet events:', error);
+      return [];
     }
   }
 }
 
+// Export singleton instance
 export const walletService = new WalletService();

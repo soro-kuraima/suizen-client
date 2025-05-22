@@ -1,35 +1,70 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ThemeProvider } from 'next-themes';
+import { Toaster } from './components/ui/sonner';
+import { WalletProvider } from './providers/WalletProvider';
+import { AppRoutes } from './routes/AppRoutes';
+import '@mysten/dapp-kit/dist/index.css'; // Import dApp Kit styles
+import './App.css';
+
+// Create a client for non-wallet related queries
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000, // 30 seconds
+      gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors
+        if (error && typeof error === 'object' && 'status' in error) {
+          const status = error.status as number;
+          if (status >= 400 && status < 500) {
+            return false;
+          }
+        }
+        return failureCount < 3;
+      },
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <WalletProvider defaultNetwork="devnet">
+            <div className="min-h-screen bg-background font-sans antialiased">
+              <AppRoutes />
+              <Toaster 
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  className: 'text-sm',
+                }}
+              />
+            </div>
+          </WalletProvider>
+        </BrowserRouter>
+        
+        {/* React Query Devtools - only in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <ReactQueryDevtools 
+            initialIsOpen={false}
+          />
+        )}
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
 }
 
-export default App
+export default App;
