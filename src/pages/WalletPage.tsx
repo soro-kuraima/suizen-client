@@ -43,19 +43,12 @@ const WalletPage: React.FC = () => {
   const { setSelectedWallet } = useWalletStore();
   const { data: ownerCaps, isLoading: loadingCaps } = useOwnerCapabilities();
 
-  // Set selected wallet from URL param
+  // Set selected wallet from URL param (only once when component mounts or walletId changes)
   useEffect(() => {
-    if (walletId && walletId !== selectedWallet?.objectId) {
+    if (walletId) {
       setSelectedWallet(walletId);
     }
-  }, [walletId, setSelectedWallet, selectedWallet]);
-
-  // Update URL when wallet selection changes
-  useEffect(() => {
-    if (selectedWallet && walletId !== selectedWallet.objectId) {
-      navigate(`/wallet/${selectedWallet.objectId}`, { replace: true });
-    }
-  }, [selectedWallet, navigate, walletId]);
+  }, [walletId, setSelectedWallet]);
 
   const handleCopyWalletId = () => {
     if (selectedWallet) {
@@ -80,105 +73,128 @@ const WalletPage: React.FC = () => {
 
   if (!currentAccount) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <CardTitle>Connect Your Wallet</CardTitle>
-            <CardDescription>
-              Please connect your wallet to access the dashboard
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="container mx-auto py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Connect Your Wallet</CardTitle>
+              <CardDescription>
+                Please connect your wallet to access the dashboard
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-8 space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Wallet Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold">Wallet Dashboard</h1>
+          <p className="text-muted-foreground mt-2">
             Manage your multi-owner wallets and transactions
           </p>
         </div>
         
-        <div className="flex items-center space-x-3">
-          <Button variant="outline" onClick={() => navigate('/wallet/create')}>
-            <Plus className="mr-2 h-4 w-4" />
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/wallet/create')}
+          >
+            <Plus className="w-4 h-4 mr-2" />
             Create Wallet
           </Button>
-          
           {selectedWallet && isOwner && (
             <Button onClick={() => setShowSendForm(true)}>
-              <Send className="mr-2 h-4 w-4" />
+              <Send className="w-4 h-4 mr-2" />
               Send Transaction
             </Button>
           )}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Wallet List Sidebar */}
-        <div className="lg:col-span-1">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="lg:col-span-1"
+        >
           <WalletList />
-        </div>
+        </motion.div>
 
         {/* Main Content */}
-        <div className="lg:col-span-3">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="lg:col-span-3"
+        >
           {selectedWallet ? (
             <div className="space-y-6">
               {/* Wallet Header */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                        <Wallet className="h-6 w-6 text-primary" />
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-primary/10 rounded-lg">
+                        <Wallet className="w-6 h-6 text-primary" />
                       </div>
-                      <div>
-                        <CardTitle className="flex items-center space-x-2">
-                          <span>Multi-Sig Wallet</span>
-                          {isOwner && <Badge variant="secondary">Owner</Badge>}
-                        </CardTitle>
-                        <CardDescription className="flex items-center space-x-2">
-                          <span>{shortenAddress(selectedWallet.objectId)}</span>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CardTitle className="text-lg">
+                            Multi-Sig Wallet
+                            {isOwner && <Badge variant="secondary">Owner</Badge>}
+                          </CardTitle>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          {shortenAddress(selectedWallet.objectId)}
                           <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={handleCopyWalletId}
-                            className="h-4 w-4 p-0"
+                            className="h-6 w-6 p-0"
                           >
-                            <Copy className="h-3 w-3" />
+                            <Copy className="w-3 h-3" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={handleViewOnExplorer}
-                            className="h-4 w-4 p-0"
+                            className="h-6 w-6 p-0"
                           >
-                            <ExternalLink className="h-3 w-3" />
+                            <ExternalLink className="w-3 h-3" />
                           </Button>
-                        </CardDescription>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="flex items-center space-x-1">
-                        <Users className="h-3 w-3" />
-                        <span>{selectedWallet.owners?.length || 0} owners</span>
-                      </Badge>
-                      <Badge variant="outline" className="flex items-center space-x-1">
-                        <Shield className="h-3 w-3" />
-                        <span>{selectedWallet.requiredApprovals}-of-{selectedWallet.owners?.length || 0}</span>
-                      </Badge>
+                    <div className="flex gap-4 text-sm">
+                      <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        {selectedWallet.owners?.length || 0} owners
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Shield className="w-4 h-4" />
+                        {selectedWallet.requiredApprovals}-of-{selectedWallet.owners?.length || 0}
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
               </Card>
 
-              {/* Tabs */}
+            {/* Tabs */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="overview" className="flex items-center space-x-2">
@@ -263,25 +279,28 @@ const WalletPage: React.FC = () => {
               </Tabs>
             </div>
           ) : (
-            <Card className="text-center py-12">
-              <CardHeader>
-                <div className="mx-auto h-12 w-12 rounded-lg bg-muted flex items-center justify-center mb-4">
-                  <Wallet className="h-6 w-6 text-muted-foreground" />
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="text-center space-y-4">
+                  <Wallet className="w-12 h-12 text-muted-foreground mx-auto" />
                 </div>
-                <CardTitle>No Wallet Selected</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl mt-4">No Wallet Selected</CardTitle>
+                <CardDescription className="text-center max-w-md">
                   Select a wallet from the sidebar or create a new one to get started
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => navigate('/wallet/create')}>
-                  <Plus className="mr-2 h-4 w-4" />
+              </CardContent>
+              <div className="p-6 pt-0">
+                <Button 
+                  className="w-full" 
+                  onClick={() => navigate('/wallet/create')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
                   Create Your First Wallet
                 </Button>
-              </CardContent>
+              </div>
             </Card>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Send Transaction Modal */}

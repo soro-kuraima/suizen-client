@@ -33,6 +33,8 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
   const { data: proposals, isLoading: proposalsLoading } = useWalletProposals(walletId);
   const { data: transactions, isLoading: transactionsLoading } = useTransactionHistory(walletId);
 
+  console.log("wallet overview mounted");
+
   if (walletLoading) {
     return (
       <div className="space-y-6">

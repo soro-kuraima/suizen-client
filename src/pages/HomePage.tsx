@@ -9,13 +9,27 @@ import {
   Users, 
   Zap, 
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  FileText
 } from 'lucide-react';
 import { WalletConnection } from '../components/features/wallet/WalletConnection';
 import { useWalletAdapter } from '../hooks/useWalletAdapter';
+import { useUserWalletsFromEvents } from '../api/hooks/useUserWallets';
+import { useWalletStore } from '../store/walletStore';
+import { getCurrentNetworkConfig } from '../config/sui-client';
 
 const HomePage: React.FC = () => {
   const { connected } = useWalletAdapter();
+  const networkConfig = getCurrentNetworkConfig();
+  const { wallets } = useWalletStore();
+  
+  // Fetch user wallets to get accurate count
+  const { data: userWallets = [], isLoading: walletsLoading } = useUserWalletsFromEvents();
+  
+  // Calculate stats
+  const totalWallets = userWallets.length;
+  const activeProposals = 0; // TODO: Implement proposal counting when you have that feature
+  const networkName = networkConfig.name || 'Testnet';
 
   const features = [
     {
@@ -81,9 +95,14 @@ const HomePage: React.FC = () => {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">
+                {walletsLoading ? '...' : totalWallets}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Create your first wallet to get started
+                {totalWallets === 0 
+                  ? 'Create your first wallet to get started'
+                  : `${totalWallets} multi-signature wallet${totalWallets === 1 ? '' : 's'}`
+                }
               </p>
             </CardContent>
           </Card>
@@ -91,12 +110,15 @@ const HomePage: React.FC = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Proposals</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{activeProposals}</div>
               <p className="text-xs text-muted-foreground">
-                No pending proposals
+                {activeProposals === 0 
+                  ? 'No pending proposals'
+                  : `${activeProposals} proposal${activeProposals === 1 ? '' : 's'} awaiting approval`
+                }
               </p>
             </CardContent>
           </Card>
@@ -107,13 +129,54 @@ const HomePage: React.FC = () => {
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Testnet</div>
+              <div className="text-2xl font-bold">
+                {networkName.charAt(0).toUpperCase() + networkName.slice(1)}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Connected to Sui Testnet
+                Connected to Sui {networkName}
+                {networkName.toLowerCase() === 'testnet' && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    Test Network
+                  </Badge>
+                )}
               </p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Activity or Quick Actions */}
+        {totalWallets > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Quick Actions</CardTitle>
+              <CardDescription>
+                Common tasks for your multi-signature wallets
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button variant="outline" asChild>
+                  <Link to="/wallet/create">
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Create New Wallet
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/wallet">
+                    <FileText className="mr-2 h-4 w-4" />
+                    View Proposals
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/wallet">
+                    <Users className="mr-2 h-4 w-4" />
+                    Manage Owners
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }

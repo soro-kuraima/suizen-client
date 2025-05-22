@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
@@ -18,22 +18,24 @@ import { useUserWalletsFromEvents } from '../../../api/hooks/useUserWallets';
 import { useWalletAdapter } from '../../../hooks/useWalletAdapter';
 import { formatSuiAmount, getTimeUntilReset, formatDuration } from '../../../utils/sui';
 import { cn } from '../../../lib/utils';
+import { toast } from 'sonner';
 
 export const WalletList: React.FC = () => {
   const { currentAccount } = useWalletAdapter();
-  const wallets = useWalletStore(state => state.wallets);
   const selectedWallet = useSelectedWallet();
   const setSelectedWallet = useWalletStore(state => state.setSelectedWallet);
   
-  // Load user's wallets
-  const { isLoading, refetch } = useUserWalletsFromEvents();
+  // Use the new hook that queries wallets from events
+  const { data: userWallets = [], isLoading, error, refetch } = useUserWalletsFromEvents();
 
-  // Auto-select first wallet if none selected
-  useEffect(() => {
-    if (wallets.length > 0 && !selectedWallet) {
-      setSelectedWallet(wallets[0].objectId);
+  const handleRefresh = async () => {
+    try {
+      await refetch();
+      toast.success('Wallets refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh wallets');
     }
-  }, [wallets, selectedWallet, setSelectedWallet]);
+  };
 
   if (isLoading) {
     return (
@@ -47,8 +49,7 @@ export const WalletList: React.FC = () => {
         <CardContent className="space-y-3">
           {[1, 2].map((i) => (
             <div key={i} className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="h-16 w-full rounded-lg" />
             </div>
           ))}
         </CardContent>
@@ -56,32 +57,55 @@ export const WalletList: React.FC = () => {
     );
   }
 
-  if (wallets.length === 0) {
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Wallet className="mr-2 h-5 w-5" />
+            My Wallets
+          </CardTitle>
+          <CardDescription className="text-destructive">
+            Failed to load wallets
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" className="w-full" onClick={handleRefresh}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (userWallets.length === 0) {
     return (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center">
-              <Wallet className="mr-2 h-5 w-5" />
-              My Wallets
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => refetch()}
-              className="h-8 w-8 p-0"
-            >
+            <div>
+              <CardTitle className="flex items-center">
+                <Wallet className="mr-2 h-5 w-5" />
+                My Wallets
+              </CardTitle>
+              <CardDescription>
+                You don't have any wallets yet
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
-          <CardDescription>
-            You don't have any wallets yet
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" className="w-full">
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => window.location.href = '/wallet/create'}
+          >
             <Plus className="mr-2 h-4 w-4" />
-            Create Wallet
+            Create Your First Wallet
           </Button>
         </CardContent>
       </Card>
@@ -92,29 +116,26 @@ export const WalletList: React.FC = () => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center">
-            <Wallet className="mr-2 h-5 w-5" />
-            My Wallets
-          </CardTitle>
+          <div>
+            <CardTitle className="flex items-center">
+              <Wallet className="mr-2 h-5 w-5" />
+              My Wallets
+            </CardTitle>
+            <CardDescription>
+              Multi-signature wallets you own
+            </CardDescription>
+          </div>
           <div className="flex items-center space-x-2">
-            <Badge variant="secondary">{wallets.length}</Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => refetch()}
-              className="h-8 w-8 p-0"
-            >
+            <Badge variant="secondary">{userWallets.length}</Badge>
+            <Button variant="ghost" size="sm" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </div>
-        <CardDescription>
-          Multi-signature wallets you own
-        </CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-3">
-        {wallets.map((wallet) => {
+        {userWallets.map((wallet) => {
           const isSelected = selectedWallet?.objectId === wallet.objectId;
           const balance = parseFloat(wallet.balance || '0') / 1_000_000_000; // Convert MIST to SUI
           
@@ -143,11 +164,19 @@ export const WalletList: React.FC = () => {
                   </div>
                 </div>
                 
-                {isSelected && (
-                  <Badge variant="default" className="text-xs">
-                    Active
-                  </Badge>
-                )}
+                <div className="flex items-center space-x-1">
+                  {isSelected && (
+                    <Badge variant="default" className="text-xs">
+                      Active
+                    </Badge>
+                  )}
+                  {/* Show if wallet was recently created */}
+                  {wallet.createdAt && Date.now() - wallet.createdAt < 5 * 60 * 1000 && (
+                    <Badge variant="secondary" className="text-xs">
+                      New
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               {/* Balance */}
@@ -178,11 +207,20 @@ export const WalletList: React.FC = () => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center space-x-1 text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      <span>Next reset</span>
+                      <span>Reset period</span>
                     </div>
                     <span className="font-medium">
                       {formatDuration(wallet.resetPeriodMs)}
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Creation timestamp for new wallets */}
+              {wallet.createdAt && Date.now() - wallet.createdAt < 60 * 60 * 1000 && (
+                <div className="mt-2 pt-2 border-t">
+                  <div className="text-xs text-muted-foreground">
+                    Created {Math.floor((Date.now() - wallet.createdAt) / (60 * 1000))} minutes ago
                   </div>
                 </div>
               )}

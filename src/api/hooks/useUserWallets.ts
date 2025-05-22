@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useWalletStore } from '../../store/walletStore';
 import { useCurrentAddress } from '../../store/connectionStore';
 import { walletService } from '../services/walletService';
@@ -11,7 +12,7 @@ export const useUserWallets = () => {
   const currentAddress = useCurrentAddress();
   const { setWallets } = useWalletStore();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: [...WALLET_QUERY_KEYS.wallets, currentAddress],
     queryFn: async () => {
       if (!currentAddress) return [];
@@ -21,7 +22,6 @@ export const useUserWallets = () => {
         const ownerCaps = await walletService.getOwnerCapabilities(currentAddress);
         
         if (ownerCaps.length === 0) {
-          setWallets([]);
           return [];
         }
 
@@ -50,13 +50,10 @@ export const useUserWallets = () => {
           wallets.push(mockWallet);
         }
         
-        // Update store
-        setWallets(wallets);
         return wallets;
         
       } catch (error) {
         console.error('Failed to fetch user wallets:', error);
-        setWallets([]);
         return [];
       }
     },
@@ -64,6 +61,15 @@ export const useUserWallets = () => {
     staleTime: 30000, // 30 seconds
     refetchOnWindowFocus: true,
   });
+
+  // Update store when data changes
+  useEffect(() => {
+    if (query.data) {
+      setWallets(query.data);
+    }
+  }, [query.data, setWallets]);
+
+  return query;
 };
 
 /**
@@ -73,7 +79,7 @@ export const useUserWalletsFromEvents = () => {
   const currentAddress = useCurrentAddress();
   const { setWallets } = useWalletStore();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: [...WALLET_QUERY_KEYS.wallets, 'events', currentAddress],
     queryFn: async () => {
       if (!currentAddress) return [];
@@ -82,25 +88,22 @@ export const useUserWalletsFromEvents = () => {
         // Query WalletCreatedEvent events where current user is involved
         const events = await walletService.getUserWalletEvents(currentAddress);
         
-        const wallets = [];
+        const walletList = [];
         for (const event of events) {
           try {
             const walletDetails = await walletService.getWallet(event.walletId);
             if (walletDetails && walletDetails.owners?.includes(currentAddress)) {
-              wallets.push(walletDetails);
+              walletList.push(walletDetails);
             }
           } catch (error) {
             console.warn(`Failed to fetch wallet ${event.walletId}:`, error);
           }
         }
         
-        // Update store
-        setWallets(wallets);
-        return wallets;
+        return walletList;
         
       } catch (error) {
         console.error('Failed to fetch user wallets from events:', error);
-        setWallets([]);
         return [];
       }
     },
@@ -108,4 +111,13 @@ export const useUserWalletsFromEvents = () => {
     staleTime: 60000, // 1 minute
     refetchOnWindowFocus: true,
   });
+
+  // Update store when data changes
+  useEffect(() => {
+    if (query.data) {
+      setWallets(query.data);
+    }
+  }, [query.data, setWallets]);
+
+  return query;
 };
