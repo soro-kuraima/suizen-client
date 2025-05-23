@@ -11,6 +11,8 @@ import {
   AddOwnerRequest 
 } from '../../types/wallet';
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../constants/config';
+import React from 'react';
+import { formatSuiAmount, mistToSui } from '../../utils/sui';
 
 // Query keys
 export const WALLET_QUERY_KEYS = {
@@ -116,52 +118,6 @@ export const useTransactionHistory = (walletId: string) => {
     },
     enabled: !!walletId,
     staleTime: 30000, // 30 seconds
-  });
-};
-
-/**
- * Hook to fetch spending records
- */
-export const useSpendingRecords = (walletId: string, ownerAddress: string) => {
-  return useQuery({
-    queryKey: WALLET_QUERY_KEYS.spendingRecords(walletId, ownerAddress),
-    queryFn: () => walletService.getOwnerSpendingRecord(walletId, ownerAddress),
-    enabled: !!walletId && !!ownerAddress,
-    staleTime: 15000, // 15 seconds
-  });
-};
-
-/**
- * Hook to fetch user's coins
- */
-export const useUserCoins = (coinType?: string) => {
-  const currentAddress = useCurrentAddress();
-
-  return useQuery({
-    queryKey: WALLET_QUERY_KEYS.userCoins(currentAddress || '', coinType),
-    queryFn: async () => {
-      if (!currentAddress) return [];
-      return await walletService.getUserCoins(currentAddress, coinType);
-    },
-    enabled: !!currentAddress,
-    staleTime: 15000, // 15 seconds
-  });
-};
-
-/**
- * Hook to fetch user's total balance
- */
-export const useUserBalance = (coinType?: string) => {
-  const currentAddress = useCurrentAddress();
-
-  return useQuery({
-    queryKey: WALLET_QUERY_KEYS.userBalance(currentAddress || '', coinType),
-    queryFn: async () => {
-      if (!currentAddress) return '0';
-      return await walletService.getUserTotalBalance(currentAddress, coinType);
-    },
-    enabled: !!currentAddress,
-    staleTime: 20000, // 20 seconds
   });
 };
 
@@ -280,7 +236,7 @@ function extractWalletIdFromTransaction(result: any): string | null {
 }
 
 /**
- * Hook to deposit coins into wallet
+ * Hook to deposit coins to wallet
  */
 export const useDepositToWallet = () => {
   const queryClient = useQueryClient();
@@ -308,48 +264,63 @@ export const useDepositToWallet = () => {
         queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.userBalance(currentAddress) });
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Deposit error:', error);
-      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
-    },
-    onSettled: () => {
-      setOperationInProgress(null);
-    },
-  });
-};
-
-/**
- * Hook to withdraw from wallet
- */
-export const useWithdraw = () => {
-  const queryClient = useQueryClient();
-  const currentAddress = useCurrentAddress();
-  const { signAndExecuteTransaction } = useWalletAdapter();
-  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
-
-  return useMutation({
-    mutationFn: async ({ request, ownerCapId }: { request: WithdrawRequest; ownerCapId: string }) => {
-      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
-      setOperationInProgress('Processing withdrawal...');
       
-      const transaction = walletService.buildWithdrawTransaction(request, ownerCapId);
-      const result = await signAndExecuteTransaction(transaction);
-      return result;
-    },
-    onSuccess: (result, variables) => {
-      toast.success(SUCCESS_MESSAGES.TRANSACTION_SENT);
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallet(variables.request.walletId) });
-      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.balances(variables.request.walletId) });
-      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.transactions(variables.request.walletId) });
-      if (currentAddress) {
-        queryClient.invalidateQueries({ 
-          queryKey: WALLET_QUERY_KEYS.spendingRecords(variables.request.walletId, currentAddress) 
-        });
+      const errorMessage = ERROR_MESSAGES.TRANSACTION_FAILED;
+      if (error.message?.includes('gas')) {
+        toast.error('Insufficient gas for transaction. Please ensure you have enough SUI for gas fees.');
+      } else if (error.message?.includes('object')) {
+        toast.error('Invalid coin object. The coin may have been spent or doesn\'t exist.');
+      } else if (error.message) {   
+      toast.error(errorMessage);
       }
     },
-    onError: (error) => {
-      console.error('Withdraw error:', error);
+    onSettled: () => {
+      setOperationInProgress(null);
+    },
+  });
+};
+
+/**
+ * Hook to deposit a specific amount (handles coin merging/splitting)
+ */
+export const useDepositAmount = () => {
+  const queryClient = useQueryClient();
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
+  return useMutation({
+    mutationFn: async ({ 
+      walletId, 
+      amount, 
+      userCoins 
+    }: { 
+      walletId: string; 
+      amount: string; 
+      userCoins: Array<{ objectId: string; balance: string }>;
+    }) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Processing amount deposit...');
+      
+      const transaction = walletService.buildDepositAmountTransaction(walletId, amount, userCoins);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
+    },
+    onSuccess: (result, variables) => {
+      toast.success(`Successfully deposited ${variables.amount} SUI`);
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallet(variables.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.balances(variables.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.transactions(variables.walletId) });
+      if (currentAddress) {
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.userCoins(currentAddress) });
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.userBalance(currentAddress) });
+      }
+    },
+    onError: (error: any) => {
+      console.error('Deposit amount error:', error);
       toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
     },
     onSettled: () => {
@@ -359,35 +330,90 @@ export const useWithdraw = () => {
 };
 
 /**
- * Hook to create a proposal
+ * Enhanced hook to fetch user's coins with better typing
  */
-export const useCreateProposal = () => {
-  const queryClient = useQueryClient();
+export const useUserCoins = (coinType?: string) => {
   const currentAddress = useCurrentAddress();
-  const { signAndExecuteTransaction } = useWalletAdapter();
-  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
 
-  return useMutation({
-    mutationFn: async ({ request, ownerCapId }: { request: CreateProposalRequest; ownerCapId: string }) => {
-      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
-      setOperationInProgress('Creating proposal...');
-      
-      const transaction = walletService.buildCreateProposalTransaction(request, ownerCapId);
-      const result = await signAndExecuteTransaction(transaction);
-      return result;
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.userCoins(currentAddress || '', coinType),
+    queryFn: async () => {
+      if (!currentAddress) return [];
+      return await walletService.getUserCoins(currentAddress, coinType);
     },
-    onSuccess: (result, variables) => {
-      toast.success(SUCCESS_MESSAGES.PROPOSAL_CREATED);
-      // Invalidate proposals query
-      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.proposals(variables.request.walletId) });
+    enabled: !!currentAddress,
+    staleTime: 15000, // 15 seconds
+    refetchOnWindowFocus: true,
+  });
+};
+
+/**
+ * Enhanced hook to fetch user's total balance
+ */
+export const useUserBalance = (coinType?: string) => {
+  const currentAddress = useCurrentAddress();
+
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.userBalance(currentAddress || '', coinType),
+    queryFn: async () => {
+      if (!currentAddress) return '0';
+      return await walletService.getUserTotalBalance(currentAddress, coinType);
     },
-    onError: (error) => {
-      console.error('Create proposal error:', error);
-      toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    enabled: !!currentAddress,
+    staleTime: 20000, // 20 seconds
+    refetchOnWindowFocus: true,
+  });
+};
+
+/**
+ * Hook to check deposit feasibility
+ */
+export const useDepositFeasibility = (amount: string) => {
+  const currentAddress = useCurrentAddress();
+
+  return useQuery({
+    queryKey: ['depositFeasibility', currentAddress, amount],
+    queryFn: async () => {
+      if (!currentAddress || !amount || parseFloat(amount) <= 0) return null;
+      return await walletService.checkDepositFeasibility(currentAddress, amount);
     },
-    onSettled: () => {
-      setOperationInProgress(null);
+    enabled: !!currentAddress && !!amount && parseFloat(amount) > 0,
+    staleTime: 10000, // 10 seconds
+  });
+};
+
+/**
+ * Hook to get user's SUI balance in a more convenient format
+ */
+export const useUserSuiBalance = () => {
+  const { data: balance = '0', isLoading } = useUserBalance();
+  const { data: coins = [], isLoading: coinsLoading } = useUserCoins();
+
+  return React.useMemo(() => ({
+    totalBalance: parseFloat(mistToSui(balance)),
+    totalBalanceFormatted: formatSuiAmount(balance, 4, false),
+    coinCount: coins.length,
+    coins: coins.map(coin => ({
+      ...coin,
+      balanceInSui: parseFloat(mistToSui(coin.balance)),
+      balanceFormatted: formatSuiAmount(coin.balance, 4, false),
+    })),
+    isLoading: isLoading || coinsLoading,
+  }), [balance, coins, isLoading, coinsLoading]);
+};
+
+/**
+ * Hook to estimate gas costs for deposit
+ */
+export const useDepositGasEstimate = (walletId: string, coinObjectId: string) => {
+  return useQuery({
+    queryKey: ['depositGasEstimate', walletId, coinObjectId],
+    queryFn: async () => {
+      if (!walletId || !coinObjectId) return '0';
+      return await walletService.estimateDepositGas(walletId, coinObjectId);
     },
+    enabled: !!walletId && !!coinObjectId,
+    staleTime: 30000, // 30 seconds
   });
 };
 
@@ -544,6 +570,208 @@ export const useUpdateSpendingLimit = () => {
     onError: (error) => {
       console.error('Update spending limit error:', error);
       toast.error(error.message || ERROR_MESSAGES.TRANSACTION_FAILED);
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
+    },
+  });
+};
+
+
+// Add these new hooks to your useWallet.ts file
+
+/**
+ * Hook to fetch owner capabilities with wallet association
+ */
+export const useOwnerCapabilitiesWithWallets = () => {
+  const currentAddress = useCurrentAddress();
+  const setOwnerCapabilities = useWalletStore((state) => state.setOwnerCapabilities);
+
+  return useQuery({
+    queryKey: [WALLET_QUERY_KEYS.ownerCaps, 'withWallets', currentAddress],
+    queryFn: async () => {
+      if (!currentAddress) return [];
+      const caps = await walletService.getOwnerCapabilitiesWithWallets(currentAddress);
+      
+      // Update store with just the cap IDs for backward compatibility
+      const capIds = caps.map(cap => cap.capId);
+      setOwnerCapabilities(currentAddress, capIds);
+      
+      return caps;
+    },
+    enabled: !!currentAddress,
+    staleTime: 30000, // 30 seconds
+  });
+};
+
+/**
+ * Hook to get owner capability for a specific wallet
+ */
+export const useOwnerCapabilityForWallet = (walletId: string) => {
+  const currentAddress = useCurrentAddress();
+
+  return useQuery({
+    queryKey: [WALLET_QUERY_KEYS.ownerCaps, walletId, currentAddress],
+    queryFn: async () => {
+      if (!currentAddress || !walletId) return null;
+      return await walletService.getOwnerCapabilityForWallet(currentAddress, walletId);
+    },
+    enabled: !!currentAddress && !!walletId,
+    staleTime: 30000, // 30 seconds
+  });
+};
+
+/**
+ * Hook to check spending limit for a transaction
+ */
+export const useSpendingLimitCheck = (walletId: string, amount: string) => {
+  const currentAddress = useCurrentAddress();
+
+  return useQuery({
+    queryKey: ['spendingLimitCheck', walletId, currentAddress, amount],
+    queryFn: async () => {
+      if (!currentAddress || !walletId || !amount) return null;
+      return await walletService.checkSpendingLimit(walletId, currentAddress, amount);
+    },
+    enabled: !!currentAddress && !!walletId && !!amount && parseFloat(amount) > 0,
+    staleTime: 10000, // 10 seconds
+  });
+};
+
+/**
+ * Enhanced hook to fetch spending records with better error handling
+ */
+export const useSpendingRecords = (walletId: string, ownerAddress: string) => {
+  return useQuery({
+    queryKey: WALLET_QUERY_KEYS.spendingRecords(walletId, ownerAddress),
+    queryFn: async () => {
+      if (!walletId || !ownerAddress) return null;
+      return await walletService.getOwnerSpendingRecord(walletId, ownerAddress);
+    },
+    enabled: !!walletId && !!ownerAddress,
+    staleTime: 15000, // 15 seconds
+    retry: (failureCount, error) => {
+      // Don't retry if it's a "not found" error
+      if (error && typeof error === 'object' && 'message' in error) {
+        const message = error.message as string;
+        if (message.includes('not found') || message.includes('does not exist')) {
+          return false;
+        }
+      }
+      return failureCount < 2;
+    },
+  });
+};
+
+/**
+ * Hook to get wallet balance in SUI (converted from MIST)
+ */
+export const useWalletBalanceInSui = (walletId: string) => {
+  const { data: wallet } = useWallet(walletId);
+  
+  return React.useMemo(() => {
+    if (!wallet?.balance) return 0;
+    return parseFloat(wallet.balance) / 1_000_000_000; // Convert MIST to SUI
+  }, [wallet?.balance]);
+};
+
+/**
+ * Enhanced withdraw mutation with better error handling
+ */
+export const useWithdraw = () => {
+  const queryClient = useQueryClient();
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
+  return useMutation({
+    mutationFn: async ({ request, ownerCapId }: { request: WithdrawRequest; ownerCapId: string }) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Processing withdrawal...');
+      
+      // First check if the withdrawal is within spending limits
+      const limitCheck = await walletService.checkSpendingLimit(
+        request.walletId, 
+        currentAddress, 
+        request.amount
+      );
+      
+      if (!limitCheck.withinLimit) {
+        throw new Error(`Amount exceeds spending limit. Available: ${limitCheck.available} SUI`);
+      }
+      
+      const transaction = walletService.buildWithdrawTransaction(request, ownerCapId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
+    },
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.TRANSACTION_SENT);
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.wallet(variables.request.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.balances(variables.request.walletId) });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.transactions(variables.request.walletId) });
+      if (currentAddress) {
+        queryClient.invalidateQueries({ 
+          queryKey: WALLET_QUERY_KEYS.spendingRecords(variables.request.walletId, currentAddress) 
+        });
+      }
+    },
+    onError: (error: any) => {
+      console.error('Withdraw error:', error);
+      
+      // Parse specific error messages
+      const errorMessage = ERROR_MESSAGES.TRANSACTION_FAILED;
+      if (error.message?.includes('EAmountExceedsLimit')) {
+        toast.error('Amount exceeds your spending limit. Please create a proposal instead.');
+      } else if (error.message?.includes('EInsufficientBalance')) {
+        toast.error('Insufficient wallet balance');
+      } else if (error.message?.includes('ENotOwner')) {
+        toast.error('You are not authorized to perform this action');
+      } else if (error.message) {
+        toast.error(errorMessage);
+      }
+      
+    },
+    onSettled: () => {
+      setOperationInProgress(null);
+    },
+  });
+};
+
+/**
+ * Enhanced create proposal mutation
+ */
+export const useCreateProposal = () => {
+  const queryClient = useQueryClient();
+  const currentAddress = useCurrentAddress();
+  const { signAndExecuteTransaction } = useWalletAdapter();
+  const setOperationInProgress = useWalletStore((state) => state.setOperationInProgress);
+
+  return useMutation({
+    mutationFn: async ({ request, ownerCapId }: { request: CreateProposalRequest; ownerCapId: string }) => {
+      if (!currentAddress) throw new Error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
+      setOperationInProgress('Creating proposal...');
+      
+      const transaction = walletService.buildCreateProposalTransaction(request, ownerCapId);
+      const result = await signAndExecuteTransaction(transaction);
+      return result;
+    },
+    onSuccess: (result, variables) => {
+      toast.success(SUCCESS_MESSAGES.PROPOSAL_CREATED);
+      // Invalidate proposals query
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEYS.proposals(variables.request.walletId) });
+    },
+    onError: (error: any) => {
+      console.error('Create proposal error:', error);
+      
+      const errorMessage = ERROR_MESSAGES.TRANSACTION_FAILED;
+      if (error.message?.includes('EInsufficientBalance')) {
+        toast.error('Insufficient wallet balance');
+      } else if (error.message?.includes('ENotOwner')) {
+        toast.error('You are not authorized to perform this action');
+      } else if (error.message) {
+        toast.error(errorMessage);
+      }
     },
     onSettled: () => {
       setOperationInProgress(null);

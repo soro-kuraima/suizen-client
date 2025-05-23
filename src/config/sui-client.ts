@@ -24,6 +24,7 @@ class SuiClientManager {
    * Initialize clients for all networks
    */
   private initializeClients(): void {
+    console.log(NETWORKS);
     Object.entries(NETWORKS).forEach(([networkName, config]) => {
       try {
         const client = new SuiClient({

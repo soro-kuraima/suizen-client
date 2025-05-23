@@ -5,12 +5,12 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { 
-  Wallet, 
-  Plus, 
-  Send, 
-  FileText, 
-  Settings, 
+import {
+  Wallet,
+  Plus,
+  Send,
+  FileText,
+  Settings,
   Users,
   TrendingUp,
   Clock,
@@ -18,6 +18,7 @@ import {
   Activity,
   Eye,
   Copy,
+  Download,
   ExternalLink
 } from 'lucide-react';
 import { WalletOverview } from '../components/features/wallet/WalletOverview';
@@ -26,6 +27,7 @@ import { SendTransactionForm } from '../components/features/wallet/SendTransacti
 import { ProposalList } from '../components/features/wallet/ProposalList';
 import { WalletSettings } from '../components/features/wallet/WalletSettings';
 import { TransactionHistory } from '../components/features/wallet/TransactionHistory';
+import { DepositDialog } from '../components/features/wallet/DepositDialog';
 import { useWalletStore, useSelectedWallet } from '../store/walletStore';
 import { useWalletAdapter } from '../hooks/useWalletAdapter';
 import { useOwnerCapabilities } from '../api/hooks/useWallet';
@@ -37,7 +39,7 @@ const WalletPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [showSendForm, setShowSendForm] = useState(false);
-  
+
   const { currentAccount } = useWalletAdapter();
   const selectedWallet = useSelectedWallet();
   const { setSelectedWallet } = useWalletStore();
@@ -66,7 +68,7 @@ const WalletPage: React.FC = () => {
 
   // Check if user is an owner of the selected wallet
   const isOwner = selectedWallet?.owners?.includes(currentAccount?.address || '') || false;
-  const userOwnerCap = ownerCaps?.find(cap => 
+  const userOwnerCap = ownerCaps?.find(cap =>
     // Would need to check which wallet this cap belongs to
     true // Simplified for now
   );
@@ -106,20 +108,38 @@ const WalletPage: React.FC = () => {
             Manage your multi-owner wallets and transactions
           </p>
         </div>
-        
+
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => navigate('/wallet/create')}
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Wallet
           </Button>
-          {selectedWallet && isOwner && (
-            <Button onClick={() => setShowSendForm(true)}>
-              <Send className="w-4 h-4 mr-2" />
-              Send Transaction
-            </Button>
+
+          {selectedWallet && (
+            <>
+              <DepositDialog
+                walletId={selectedWallet.objectId}
+                onSuccess={() => {
+                  // Optionally refresh wallet data
+                  console.log('Deposit successful, wallet data will auto-refresh');
+                }}
+              >
+                <Button variant="outline">
+                  <Download className="w-4 h-4 mr-2" />
+                  Deposit
+                </Button>
+              </DepositDialog>
+
+              {isOwner && (
+                <Button onClick={() => setShowSendForm(true)}>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Transaction
+                </Button>
+              )}
+            </>
           )}
         </div>
       </motion.div>
@@ -150,7 +170,7 @@ const WalletPage: React.FC = () => {
                       <div className="p-3 bg-primary/10 rounded-lg">
                         <Wallet className="w-6 h-6 text-primary" />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <CardTitle className="text-lg">
@@ -160,17 +180,17 @@ const WalletPage: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           {shortenAddress(selectedWallet.objectId)}
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={handleCopyWalletId}
                             className="h-6 w-6 p-0"
                           >
                             <Copy className="w-3 h-3" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={handleViewOnExplorer}
                             className="h-6 w-6 p-0"
                           >
@@ -179,7 +199,7 @@ const WalletPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-4 text-sm">
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
@@ -194,7 +214,7 @@ const WalletPage: React.FC = () => {
                 </CardHeader>
               </Card>
 
-            {/* Tabs */}
+              {/* Tabs */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="overview" className="flex items-center space-x-2">
@@ -256,8 +276,8 @@ const WalletPage: React.FC = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <WalletSettings 
-                        walletId={selectedWallet.objectId} 
+                      <WalletSettings
+                        walletId={selectedWallet.objectId}
                         mode="owners"
                       />
                     </motion.div>
@@ -269,8 +289,8 @@ const WalletPage: React.FC = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <WalletSettings 
-                        walletId={selectedWallet.objectId} 
+                      <WalletSettings
+                        walletId={selectedWallet.objectId}
                         mode="settings"
                       />
                     </motion.div>
@@ -290,8 +310,8 @@ const WalletPage: React.FC = () => {
                 </CardDescription>
               </CardContent>
               <div className="p-6 pt-0">
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   onClick={() => navigate('/wallet/create')}
                 >
                   <Plus className="w-4 h-4 mr-2" />

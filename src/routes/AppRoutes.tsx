@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from '../components/layouts/MainLayout';
 import { useWalletAdapter } from '../hooks/useWalletAdapter';
 import { WalletAwareLayout } from '../components/layouts/WalletAwareLayout';
+import DebugPage from '../pages/DebugPage';
 
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import('../pages/HomePage'));
@@ -136,6 +137,9 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         />
+
+        // In your AppRoutes.tsx
+<Route path="/debug" element={<DebugPage />} />
         
         {/* Catch all route */}
         <Route 

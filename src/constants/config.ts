@@ -1,4 +1,7 @@
+//import { getCurrentNetwork } from '../config/sui-client';
 import { NetworkConfig } from '../types/wallet';
+
+export const DEFAULT_NETWORK = 'devnet';
 
 // Network configurations
 export const NETWORKS: Record<string, NetworkConfig> = {
@@ -28,12 +31,15 @@ export const NETWORKS: Record<string, NetworkConfig> = {
   },
 };
 
-// Default network
-export const DEFAULT_NETWORK = 'devnet';
+// Coin types
+export const COIN_TYPES = {
+  SUI: '0x2::sui::SUI',
+} as const;
 
-// Contract function names
+
+// Update contract function names to match your Move code
 export const CONTRACT_FUNCTIONS = {
-  // Multi-owner wallet functions
+  // Multi-owner wallet functions - these should match your Move module exactly
   CREATE_WALLET: 'create_wallet',
   DEPOSIT: 'deposit',
   WITHDRAW: 'withdraw',
@@ -42,35 +48,34 @@ export const CONTRACT_FUNCTIONS = {
   EXECUTE_PROPOSAL: 'execute_proposal',
   ADD_OWNER: 'add_owner',
   UPDATE_SPENDING_LIMIT: 'update_spending_limit',
+  
+  // View functions
+  BALANCE: 'balance',
+  OWNER_SPENDING: 'owner_spending',
+  IS_OWNER: 'is_owner',
+  PROPOSAL_DETAILS: 'proposal_details',
 } as const;
 
-// Coin types
-export const COIN_TYPES = {
-  SUI: '0x2::sui::SUI',
+// Add event types that match your Move events
+export const EVENT_TYPES = {
+  WALLET_CREATED: `::multi_owner_wallet::WalletCreatedEvent`,
+  COIN_DEPOSITED: `::multi_owner_wallet::CoinDepositedEvent`,
+  COIN_WITHDRAWN: `::multi_owner_wallet::CoinWithdrawnEvent`,
+  OWNER_ADDED: `::multi_owner_wallet::OwnerAddedEvent`,
+  SPENDING_LIMIT_UPDATED: `::multi_owner_wallet::SpendingLimitUpdatedEvent`,
+  PROPOSAL_CREATED: `::multi_owner_wallet::ProposalCreatedEvent`,
+  PROPOSAL_APPROVED: `::multi_owner_wallet::ProposalApprovedEvent`,
+  PROPOSAL_EXECUTED: `::multi_owner_wallet::ProposalExecutedEvent`,
 } as const;
 
-// Default spending limits and reset periods
-export const DEFAULT_CONFIG = {
-  SPENDING_LIMIT: '1000000000', // 1 SUI in MIST
-  RESET_PERIOD_MS: 24 * 60 * 60 * 1000, // 24 hours
-  MIN_REQUIRED_APPROVALS: 1,
-  MAX_OWNERS: 10,
+// Add object types that match your Move structs
+export const OBJECT_TYPES = {
+  WALLET: `::multi_owner_wallet::Wallet`,
+  OWNER_CAP: `::multi_owner_wallet::OwnerCap`,
+  TRANSACTION_PROPOSAL: `::multi_owner_wallet::TransactionProposal`,
+  OWNER_SPENDING_RECORD: `::multi_owner_wallet::OwnerSpendingRecord`,
 } as const;
 
-// Transaction limits
-export const TRANSACTION_LIMITS = {
-  MIN_AMOUNT: '1000', // 0.000001 SUI
-  MAX_AMOUNT: '1000000000000', // 1000 SUI
-  GAS_BUDGET: '20000000', // 0.02 SUI
-} as const;
-
-// UI Constants
-export const UI_CONFIG = {
-  ITEMS_PER_PAGE: 20,
-  REFRESH_INTERVAL: 30000, // 30 seconds
-  ANIMATION_DURATION: 300,
-  DEBOUNCE_DELAY: 500,
-} as const;
 
 // Error messages
 export const ERROR_MESSAGES = {

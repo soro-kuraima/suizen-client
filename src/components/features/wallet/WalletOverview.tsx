@@ -5,11 +5,11 @@ import { Button } from '../../ui/button';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
 import { Progress } from '../../ui/progress';
 import { Skeleton } from '../../ui/skeleton';
-import { 
-  TrendingUp, 
-  Users, 
-  Shield, 
-  Clock, 
+import {
+  TrendingUp,
+  Users,
+  Shield,
+  Clock,
   Activity,
   Wallet,
   Send,
@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Eye
 } from 'lucide-react';
+import { QuickDepositCard } from './QuickDepositCard';
 import { useWallet, useWalletBalances, useWalletProposals, useTransactionHistory } from '../../../api/hooks/useWallet';
 import { useWalletAdapter } from '../../../hooks/useWalletAdapter';
 import { formatSuiAmount, shortenAddress, formatTimestamp, getTimeUntilReset, formatDuration, hasSpendingLimitReset } from '../../../utils/sui';
@@ -69,10 +70,10 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
   const balance = parseFloat(suiBalance?.balance || '0') / 1_000_000_000;
   const pendingProposals = proposals?.filter(p => p.approvals.length < wallet.requiredApprovals) || [];
   const recentTransactions = transactions?.transactions.slice(0, 5) || [];
-  
+
   // Check if user is an owner
   const isOwner = wallet.owners?.includes(currentAccount?.address || '');
-  
+
   // Mock spending data - in real app, this would come from the smart contract
   const spendingData = {
     spent: 0.5, // Example: 0.5 SUI spent
@@ -80,7 +81,7 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
     lastReset: Date.now() - (12 * 60 * 60 * 1000), // 12 hours ago
     resetPeriod: wallet.resetPeriodMs
   };
-  
+
   const spendingPercentage = (spendingData.spent / spendingData.limit) * 100;
   const timeUntilReset = getTimeUntilReset(spendingData.lastReset, spendingData.resetPeriod);
   const canSpend = spendingData.spent < spendingData.limit;
@@ -148,8 +149,8 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Security</p>
                 <div className="text-2xl font-bold">
-                  {wallet.requiredApprovals === 1 ? 'Basic' : 
-                   wallet.requiredApprovals === 2 ? 'Standard' : 'High'}
+                  {wallet.requiredApprovals === 1 ? 'Basic' :
+                    wallet.requiredApprovals === 2 ? 'Standard' : 'High'}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {wallet.requiredApprovals}-of-{wallet.owners?.length}
@@ -162,6 +163,15 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
           </CardContent>
         </Card>
       </div>
+      {/* Quick Deposit Section (only show if wallet has low balance) */}
+      {walletId && balance < 1 && ( // Show if less than 1 SUI
+        <QuickDepositCard
+          walletId={walletId}
+          walletBalance={suiBalance?.balance || '0'}
+          className="lg:col-span-2"
+        />
+      )}
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Spending Limit (if user is owner) */}
@@ -190,7 +200,7 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
                   <span>{(spendingData.limit - spendingData.spent).toFixed(2)} SUI remaining</span>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
@@ -208,8 +218,8 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
                   <AlertCircle className="h-4 w-4 text-orange-500" />
                 )}
                 <span className="text-sm">
-                  {canSpend 
-                    ? "You can send transactions within your limit" 
+                  {canSpend
+                    ? "You can send transactions within your limit"
                     : "Limit exceeded - multi-sig approval required"
                   }
                 </span>
@@ -274,12 +284,10 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
                 {recentTransactions.map((tx, index) => (
                   <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
-                        tx.type === 'send' ? 'bg-red-500/10' : 'bg-green-500/10'
-                      }`}>
-                        <Send className={`h-4 w-4 ${
-                          tx.type === 'send' ? 'text-red-500 rotate-45' : 'text-green-500 -rotate-45'
-                        }`} />
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${tx.type === 'send' ? 'bg-red-500/10' : 'bg-green-500/10'
+                        }`}>
+                        <Send className={`h-4 w-4 ${tx.type === 'send' ? 'text-red-500 rotate-45' : 'text-green-500 -rotate-45'
+                          }`} />
                       </div>
                       <div>
                         <div className="font-medium text-sm">
