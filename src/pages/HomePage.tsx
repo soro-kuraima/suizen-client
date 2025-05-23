@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { 
-  Wallet, 
-  Shield, 
-  Users, 
-  Zap, 
+import {
+  Wallet,
+  Shield,
+  Users,
+  Zap,
   ArrowRight,
   CheckCircle,
   FileText
@@ -22,10 +22,10 @@ const HomePage: React.FC = () => {
   const { connected } = useWalletAdapter();
   const networkConfig = getCurrentNetworkConfig();
   const { wallets } = useWalletStore();
-  
+
   // Fetch user wallets to get accurate count
   const { data: userWallets = [], isLoading: walletsLoading } = useUserWalletsFromEvents();
-  
+
   // Calculate stats
   const totalWallets = userWallets.length;
   const activeProposals = 0; // TODO: Implement proposal counting when you have that feature
@@ -69,7 +69,7 @@ const HomePage: React.FC = () => {
           <p className="text-xl text-muted-foreground mb-8">
             Your advanced multi-signature wallet is ready to use
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg">
               <Link to="/wallet">
@@ -77,7 +77,7 @@ const HomePage: React.FC = () => {
                 View Wallets
               </Link>
             </Button>
-            
+
             <Button variant="outline" size="lg" asChild>
               <Link to="/wallet/create">
                 Create New Wallet
@@ -99,14 +99,14 @@ const HomePage: React.FC = () => {
                 {walletsLoading ? '...' : totalWallets}
               </div>
               <p className="text-xs text-muted-foreground">
-                {totalWallets === 0 
+                {totalWallets === 0
                   ? 'Create your first wallet to get started'
                   : `${totalWallets} multi-signature wallet${totalWallets === 1 ? '' : 's'}`
                 }
               </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Proposals</CardTitle>
@@ -115,14 +115,14 @@ const HomePage: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{activeProposals}</div>
               <p className="text-xs text-muted-foreground">
-                {activeProposals === 0 
+                {activeProposals === 0
                   ? 'No pending proposals'
                   : `${activeProposals} proposal${activeProposals === 1 ? '' : 's'} awaiting approval`
                 }
               </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Network</CardTitle>
@@ -189,20 +189,20 @@ const HomePage: React.FC = () => {
           <Badge variant="outline" className="mb-4">
             Built on Sui Blockchain
           </Badge>
-          
+
           <h1 className="text-5xl font-bold tracking-tight mb-6">
             Advanced Multi-Signature
             <span className="text-primary block mt-2">Wallet for Sui</span>
           </h1>
-          
+
           <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Secure, flexible, and powerful multi-owner wallet with custom spending policies, 
+            Secure, flexible, and powerful multi-owner wallet with custom spending policies,
             time-based limits, and advanced governance features for teams and organizations.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <WalletConnection />
-            
+
             <Button variant="outline" size="lg" asChild>
               <Link to="#features">
                 Learn More
@@ -210,7 +210,7 @@ const HomePage: React.FC = () => {
               </Link>
             </Button>
           </div>
-          
+
           <div className="flex items-center justify-center space-x-8 text-sm text-muted-foreground">
             <div className="flex items-center">
               <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
@@ -237,7 +237,7 @@ const HomePage: React.FC = () => {
               Everything you need for secure multi-signature wallet management
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <Card key={index} className="text-center">
@@ -267,7 +267,7 @@ const HomePage: React.FC = () => {
               Built for teams that need secure, flexible wallet management
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {benefits.map((benefit, index) => (
               <div key={index} className="flex items-start space-x-3">
@@ -286,7 +286,7 @@ const HomePage: React.FC = () => {
           <p className="text-lg mb-8 text-primary-foreground/80">
             Connect your wallet and create your first multi-signature wallet in minutes
           </p>
-          
+
           <WalletConnection />
         </div>
       </section>

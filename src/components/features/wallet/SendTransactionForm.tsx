@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// Improved version of src/components/features/wallet/SendTransactionForm.tsx
+
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,7 +26,8 @@ import {
   Clock,
   Users,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Bug
 } from 'lucide-react';
 import { Alert, AlertDescription } from '../../ui/alert';
 import {
@@ -66,6 +69,7 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
   onClose,
 }) => {
   const [transactionType, setTransactionType] = useState<'direct' | 'proposal'>('direct');
+  const [showDebug, setShowDebug] = useState(process.env.NODE_ENV === 'development');
   const { currentAccount } = useWalletAdapter();
 
   const withdrawMutation = useWithdraw();
@@ -122,7 +126,35 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
   const isOwner = wallet?.owners?.includes(currentAccount?.address || '') || false;
   const hasOwnerCap = !!ownerCapId;
 
-  const currentAddress = currentAccount.address;
+  const currentAddress = currentAccount?.address || '';
+
+  // Debug logging
+  useEffect(() => {
+    if (showDebug) {
+      console.log('🔍 SendTransactionForm Debug:', {
+        walletId,
+        currentAddress,
+        isOwner,
+        hasOwnerCap,
+        ownerCapId,
+        spendingRecord,
+        spendingData,
+        limitCheck,
+        availableLimit,
+        exceedsLimit,
+        requiresMultiSig,
+        wallet: wallet ? {
+          balance: wallet.balance,
+          owners: wallet.owners,
+          requiredApprovals: wallet.requiredApprovals
+        } : null
+      });
+    }
+  }, [
+    showDebug, walletId, currentAddress, isOwner, hasOwnerCap, ownerCapId,
+    spendingRecord, spendingData, limitCheck, availableLimit, exceedsLimit,
+    requiresMultiSig, wallet
+  ]);
 
   const onSubmit = async (values: SendTransactionData) => {
     if (!wallet || !currentAddress || !ownerCapId) {
@@ -148,6 +180,16 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
         toast.error('Insufficient wallet balance');
         return;
       }
+
+      console.log('🚀 Submitting transaction:', {
+        type: transactionType,
+        exceedsLimit,
+        requiresMultiSig,
+        amount,
+        availableLimit,
+        recipient: normalizedRecipient,
+        ownerCapId
+      });
 
       if (transactionType === 'direct' && !exceedsLimit) {
         // Direct withdrawal within spending limit
@@ -178,7 +220,7 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
       onClose();
       form.reset();
     } catch (error: any) {
-      console.error('Transaction failed:', error);
+      console.error('❌ Transaction failed:', error);
 
       // Parse error messages from smart contract
       let errorMessage = 'Transaction failed';
@@ -225,6 +267,21 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
               You are not authorized to send transactions from this wallet.
             </DialogDescription>
           </DialogHeader>
+
+          {showDebug && (
+            <Card className="bg-muted/50">
+              <CardContent className="p-4">
+                <div className="text-xs space-y-1">
+                  <div>Is Owner: {isOwner ? 'Yes' : 'No'}</div>
+                  <div>Has Owner Cap: {hasOwnerCap ? 'Yes' : 'No'}</div>
+                  <div>Owner Cap ID: {ownerCapId || 'None'}</div>
+                  <div>Current Address: {currentAddress}</div>
+                  <div>Wallet Owners: {wallet?.owners?.join(', ') || 'None'}</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="flex justify-end">
             <Button onClick={onClose}>Close</Button>
           </div>
@@ -234,219 +291,249 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
   }
 
   return (
-    <ScrollArea>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center">
               <Send className="mr-2 h-5 w-5" />
               Send Transaction
-            </DialogTitle>
-            <DialogDescription>
-              Send SUI from your multi-owner wallet
-            </DialogDescription>
-          </DialogHeader>
+            </div>
+            {process.env.NODE_ENV === 'development' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDebug(!showDebug)}
+              >
+                <Bug className="h-4 w-4" />
+              </Button>
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            Send SUI from your multi-owner wallet
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="space-y-6 overflow-auto">
-            {/* Transaction Type Tabs */}
-            <Tabs value={transactionType} onValueChange={(v) => setTransactionType(v as any)}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="direct" className="flex items-center space-x-2">
-                  <Zap className="h-4 w-4" />
-                  <span>Direct Send</span>
-                </TabsTrigger>
-                <TabsTrigger value="proposal" className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4" />
-                  <span>Create Proposal</span>
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="direct" className="mt-4">
-                <Alert>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Direct Send:</strong> Instant transactions within your spending limit
-                    ({limitCheck ? parseFloat(limitCheck.available).toFixed(4) : availableLimit.toFixed(4)} SUI available)
-                  </AlertDescription>
-                </Alert>
-              </TabsContent>
-
-              <TabsContent value="proposal" className="mt-4">
-                <Alert>
-                  <Users className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Multi-Sig Proposal:</strong> Requires approval from {wallet?.requiredApprovals} of {wallet?.owners?.length} owners
-                  </AlertDescription>
-                </Alert>
-              </TabsContent>
-            </Tabs>
-
-            {/* Spending Limit Info */}
-            <Card>
+        <div className="space-y-6 overflow-auto">
+          {/* Debug Info */}
+          {showDebug && (
+            <Card className="bg-muted/50">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>Your spending limit</span>
-                  </div>
-                  <Badge variant="outline">
-                    {limitCheck ? parseFloat(limitCheck.available).toFixed(4) : availableLimit.toFixed(4)} SUI available
-                  </Badge>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {limitCheck ? parseFloat(limitCheck.currentSpent).toFixed(4) : spendingData.spent.toFixed(4)} spent of {limitCheck ? parseFloat(limitCheck.limit).toFixed(4) : spendingData.limit.toFixed(4)} limit
-                </div>
-                <div className="mt-2">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${Math.min(100, limitCheck ?
-                          (parseFloat(limitCheck.currentSpent) / parseFloat(limitCheck.limit)) * 100 :
-                          (spendingData.spent / spendingData.limit) * 100)}%`
-                      }}
-                    />
-                  </div>
+                <div className="text-xs space-y-1">
+                  <div><strong>Debug Info:</strong></div>
+                  <div>Wallet ID: {walletId}</div>
+                  <div>User: {currentAddress}</div>
+                  <div>Is Owner: {isOwner ? 'Yes' : 'No'}</div>
+                  <div>Owner Cap: {ownerCapId || 'None'}</div>
+                  <div>Spending Record: {spendingRecord ? 'Found' : 'Not found'}</div>
+                  <div>Spent: {spendingData.spent} SUI</div>
+                  <div>Limit: {spendingData.limit} SUI</div>
+                  <div>Available: {availableLimit} SUI</div>
+                  <div>Exceeds Limit: {exceedsLimit ? 'Yes' : 'No'}</div>
+                  <div>Requires Multi-Sig: {requiresMultiSig ? 'Yes' : 'No'}</div>
                 </div>
               </CardContent>
             </Card>
+          )}
 
-            {/* Wallet Balance Info */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Wallet Balance</span>
-                  <span className="font-medium">
-                    {wallet ? formatSuiAmount(wallet.balance, 4, false) : '0.0000'} SUI
-                  </span>
+          {/* Transaction Type Tabs */}
+          <Tabs value={transactionType} onValueChange={(v) => setTransactionType(v as any)}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="direct" className="flex items-center space-x-2">
+                <Zap className="h-4 w-4" />
+                <span>Direct Send</span>
+              </TabsTrigger>
+              <TabsTrigger value="proposal" className="flex items-center space-x-2">
+                <Shield className="h-4 w-4" />
+                <span>Create Proposal</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="direct" className="mt-4">
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Direct Send:</strong> Instant transactions within your spending limit
+                  ({limitCheck ? parseFloat(limitCheck.available).toFixed(4) : availableLimit.toFixed(4)} SUI available)
+                </AlertDescription>
+              </Alert>
+            </TabsContent>
+
+            <TabsContent value="proposal" className="mt-4">
+              <Alert>
+                <Users className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Multi-Sig Proposal:</strong> Requires approval from {wallet?.requiredApprovals} of {wallet?.owners?.length} owners
+                </AlertDescription>
+              </Alert>
+            </TabsContent>
+          </Tabs>
+
+          {/* Spending Limit Info */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>Your spending limit</span>
                 </div>
-              </CardContent>
-            </Card>
+                <Badge variant="outline">
+                  {limitCheck ? parseFloat(limitCheck.available).toFixed(4) : availableLimit.toFixed(4)} SUI available
+                </Badge>
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {limitCheck ? parseFloat(limitCheck.currentSpent).toFixed(4) : spendingData.spent.toFixed(4)} spent of {limitCheck ? parseFloat(limitCheck.limit).toFixed(4) : spendingData.limit.toFixed(4)} limit
+              </div>
+              <div className="mt-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.min(100, limitCheck ?
+                        (parseFloat(limitCheck.currentSpent) / parseFloat(limitCheck.limit)) * 100 :
+                        (spendingData.spent / spendingData.limit) * 100)}%`
+                    }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Transaction Form */}
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="recipient"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Recipient Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="0x..." {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        The Sui address to send SUI to
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* Wallet Balance Info */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span>Wallet Balance</span>
+                <span className="font-medium">
+                  {wallet ? formatSuiAmount(wallet.balance, 4, false) : '0.0000'} SUI
+                </span>
+              </div>
+            </CardContent>
+          </Card>
 
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount (SUI)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          min="0.001"
-                          placeholder="0.0"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Amount of SUI to send
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="note"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Note (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Add a note for this transaction..."
-                          className="min-h-[60px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Transaction Preview */}
-                {amount > 0 && (
-                  <Card className={`${requiresMultiSig ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : 'border-green-200 bg-green-50 dark:bg-green-950/20'}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">Transaction Preview</span>
-                        <Badge variant={requiresMultiSig ? 'secondary' : 'default'}>
-                          {requiresMultiSig ? 'Requires Approval' : 'Instant'}
-                        </Badge>
-                      </div>
-
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Amount:</span>
-                          <span className="font-medium">{amount} SUI</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Transaction type:</span>
-                          <span>{requiresMultiSig ? 'Multi-sig proposal' : 'Direct send'}</span>
-                        </div>
-                        {requiresMultiSig && (
-                          <div className="flex justify-between">
-                            <span>Approvals needed:</span>
-                            <span>{wallet?.requiredApprovals} of {wallet?.owners?.length}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {requiresMultiSig && (
-                        <Alert className="mt-3">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription className="text-xs">
-                            This transaction exceeds your spending limit and will require approval from other wallet owners.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </CardContent>
-                  </Card>
+          {/* Transaction Form */}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="recipient"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Recipient Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0x..." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      The Sui address to send SUI to
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
 
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-3">
-                  <Button variant="outline" onClick={onClose} disabled={isLoading}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                        Processing...
-                      </>
-                    ) : requiresMultiSig ? (
-                      'Create Proposal'
-                    ) : (
-                      'Send Transaction'
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount (SUI)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        min="0.001"
+                        placeholder="0.0"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Amount of SUI to send
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="note"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Add a note for this transaction..."
+                        className="min-h-[60px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Transaction Preview */}
+              {amount > 0 && (
+                <Card className={`${requiresMultiSig ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : 'border-green-200 bg-green-50 dark:bg-green-950/20'}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Transaction Preview</span>
+                      <Badge variant={requiresMultiSig ? 'secondary' : 'default'}>
+                        {requiresMultiSig ? 'Requires Approval' : 'Instant'}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Amount:</span>
+                        <span className="font-medium">{amount} SUI</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Transaction type:</span>
+                        <span>{requiresMultiSig ? 'Multi-sig proposal' : 'Direct send'}</span>
+                      </div>
+                      {requiresMultiSig && (
+                        <div className="flex justify-between">
+                          <span>Approvals needed:</span>
+                          <span>{wallet?.requiredApprovals} of {wallet?.owners?.length}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {requiresMultiSig && (
+                      <Alert className="mt-3">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          This transaction exceeds your spending limit and will require approval from other wallet owners.
+                        </AlertDescription>
+                      </Alert>
                     )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </ScrollArea>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3">
+                <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                      Processing...
+                    </>
+                  ) : requiresMultiSig ? (
+                    'Create Proposal'
+                  ) : (
+                    'Send Transaction'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

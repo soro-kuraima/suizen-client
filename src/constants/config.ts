@@ -20,7 +20,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
   devnet: {
     name: 'Sui Devnet',
     rpcUrl: 'https://fullnode.devnet.sui.io:443',
-    packageAddress: '0xa67113039262a42b86071d4b5cac0c92c92e7e0dcd24051a2ab239387ab9dc33', // Replace with your deployed package address
+    packageAddress: '0x95d889f983104d61c5b6145a0c6a1028882048d8c7f62f439951906c1e3e95ea', // Replace with your deployed package address
     explorerUrl: 'https://explorer.sui.io/?network=devnet',
   },
   localnet: {

@@ -17,7 +17,9 @@ export interface TransactionRecord {
   amount: string;
   coinType: string;
   status: 'success' | 'failed' | 'pending';
-  type: 'send' | 'receive' | 'multi_sig';
+  type: 'send' | 'receive' | 'multi_sig' | 'deposit';
+  isMultiSig?: boolean; // NEW: Indicates if transaction required multi-sig approval
+  functionName?: string;
 }
 
 // Multi-owner wallet specific types

@@ -1,23 +1,32 @@
+// Fixed version of src/components/features/wallet/ProposalList.tsx
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
 import { Progress } from '../../ui/progress';
-import { 
-  FileText, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  FileText,
+  Clock,
+  CheckCircle2,
+  XCircle,
   Send,
   Users,
   AlertCircle,
   Eye,
   ThumbsUp,
-  Play
+  Play,
+  Loader2
 } from 'lucide-react';
 import { Alert, AlertDescription } from '../../ui/alert';
-import { useWalletProposals, useApproveProposal, useExecuteProposal } from '../../../api/hooks/useWallet';
+import {
+  useWalletProposals,
+  useApproveProposal,
+  useExecuteProposal,
+  useOwnerCapabilityForWallet,
+  useWallet
+} from '../../../api/hooks/useWallet';
 import { useWalletAdapter } from '../../../hooks/useWalletAdapter';
 import { shortenAddress, formatSuiAmount, formatTimestamp } from '../../../utils/sui';
 import { toast } from 'sonner';
@@ -29,35 +38,120 @@ interface ProposalListProps {
 export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
   const { currentAccount } = useWalletAdapter();
   const { data: proposals, isLoading } = useWalletProposals(walletId);
+  const { data: wallet } = useWallet(walletId);
+
+  // FIXED: Get real owner capability instead of using mock
+  const { data: ownerCapId, isLoading: ownerCapLoading } = useOwnerCapabilityForWallet(walletId);
+
   const approveProposalMutation = useApproveProposal();
   const executeProposalMutation = useExecuteProposal();
 
-  // Mock owner cap ID - in real app, get from useOwnerCapabilities
-  const ownerCapId = 'mock-owner-cap-id';
+  // Check if user is authorized
+  const currentAddress = currentAccount?.address;
+  const isOwner = wallet?.owners?.includes(currentAddress || '') || false;
+  const hasOwnerCap = !!ownerCapId;
+  const canInteract = isOwner && hasOwnerCap;
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 ProposalList Debug:', {
+      walletId,
+      currentAddress,
+      isOwner,
+      ownerCapId,
+      hasOwnerCap,
+      canInteract,
+      proposalsCount: proposals?.length || 0
+    });
+  }, [walletId, currentAddress, isOwner, ownerCapId, hasOwnerCap, canInteract, proposals]);
 
   const handleApprove = async (proposalId: string) => {
+    if (!canInteract) {
+      toast.error('You are not authorized to approve proposals for this wallet');
+      return;
+    }
+
+    if (!ownerCapId) {
+      toast.error('Owner capability not found. You may not be an owner of this wallet.');
+      return;
+    }
+
     try {
+      console.log('🎯 Approving proposal:', {
+        proposalId,
+        walletId,
+        ownerCapId,
+        userAddress: currentAddress
+      });
+
       await approveProposalMutation.mutateAsync({
         walletId,
         proposalId,
         ownerCapId,
       });
-      toast.success('Proposal approved!');
-    } catch (error) {
-      console.error('Failed to approve proposal:', error);
+
+      toast.success('Proposal approved successfully!');
+    } catch (error: any) {
+      console.error('❌ Failed to approve proposal:', error);
+
+      // Parse specific error messages
+      let errorMessage = 'Failed to approve proposal';
+      if (error.message?.includes('ENotOwner')) {
+        errorMessage = 'You are not authorized to approve this proposal';
+      } else if (error.message?.includes('already approved')) {
+        errorMessage = 'You have already approved this proposal';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
     }
   };
 
   const handleExecute = async (proposalId: string) => {
+    if (!canInteract) {
+      toast.error('You are not authorized to execute proposals for this wallet');
+      return;
+    }
+
+    if (!ownerCapId) {
+      toast.error('Owner capability not found. You may not be an owner of this wallet.');
+      return;
+    }
+
     try {
+      console.log('🎯 Executing proposal:', {
+        proposalId,
+        walletId,
+        ownerCapId,
+        userAddress: currentAddress
+      });
+
       await executeProposalMutation.mutateAsync({
         walletId,
         proposalId,
         ownerCapId,
       });
+
       toast.success('Proposal executed successfully!');
-    } catch (error) {
-      console.error('Failed to execute proposal:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to execute proposal:', error);
+
+      // Parse specific error messages
+      let errorMessage = 'Failed to execute proposal';
+      if (error.message?.includes('ENotOwner')) {
+        errorMessage = 'You are not authorized to execute this proposal';
+      } else if (error.message?.includes('EMultiSigRequired')) {
+        errorMessage = 'Not enough approvals to execute this proposal';
+      } else if (error.message?.includes('EInsufficientBalance')) {
+        errorMessage = 'Insufficient wallet balance to execute this proposal';
+      } else if (error.message?.includes('expired')) {
+        errorMessage = 'This proposal has expired';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
     }
   };
 
@@ -65,8 +159,100 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Loading proposals...</CardTitle>
+          <CardTitle className="flex items-center">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Loading proposals...
+          </CardTitle>
         </CardHeader>
+      </Card>
+    );
+  }
+
+  // Show authorization status if there are issues
+  if (!currentAddress) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <AlertCircle className="mr-2 h-5 w-5 text-red-500" />
+            Authentication Required
+          </CardTitle>
+          <CardDescription>
+            Please connect your wallet to view and interact with proposals
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <AlertCircle className="mr-2 h-5 w-5 text-orange-500" />
+            Access Restricted
+          </CardTitle>
+          <CardDescription>
+            You are not an owner of this wallet and cannot interact with proposals
+          </CardDescription>
+        </CardHeader>
+
+        {process.env.NODE_ENV === 'development' && (
+          <CardContent>
+            <Alert>
+              <AlertDescription className="text-xs">
+                <strong>Debug Info:</strong><br />
+                Current Address: {currentAddress}<br />
+                Wallet Owners: {wallet?.owners?.join(', ') || 'Loading...'}<br />
+                Is Owner: {isOwner ? 'Yes' : 'No'}
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        )}
+      </Card>
+    );
+  }
+
+  if (ownerCapLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Loading authorization...
+          </CardTitle>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (!hasOwnerCap) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <AlertCircle className="mr-2 h-5 w-5 text-red-500" />
+            Authorization Error
+          </CardTitle>
+          <CardDescription>
+            Owner capability not found. You may not have the required permissions.
+          </CardDescription>
+        </CardHeader>
+
+        {process.env.NODE_ENV === 'development' && (
+          <CardContent>
+            <Alert>
+              <AlertDescription className="text-xs">
+                <strong>Debug Info:</strong><br />
+                Owner Cap ID: {ownerCapId || 'Not found'}<br />
+                Current Address: {currentAddress}<br />
+                Is Owner: {isOwner ? 'Yes' : 'No'}<br />
+                Has Owner Cap: {hasOwnerCap ? 'Yes' : 'No'}
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        )}
       </Card>
     );
   }
@@ -96,6 +282,7 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold flex items-center">
@@ -109,12 +296,23 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
         <Badge variant="secondary">{proposals.length}</Badge>
       </div>
 
+      {/* Authorization Status */}
+      {canInteract && (
+        <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800 dark:text-green-200">
+            You are authorized to approve and execute proposals for this wallet
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Proposal List */}
       <div className="space-y-4">
         {proposals.map((proposal) => {
-          const approvalsNeeded = 2; // Mock - would get from wallet.requiredApprovals
+          const approvalsNeeded = wallet?.requiredApprovals || 2;
           const approvalProgress = (proposal.approvals.length / approvalsNeeded) * 100;
           const canExecute = proposal.approvals.length >= approvalsNeeded;
-          const hasApproved = proposal.approvals.includes(currentAccount?.address || '');
+          const hasApproved = proposal.approvals.includes(currentAddress || '');
           const isExpired = proposal.expiration ? Date.now() > proposal.expiration : false;
 
           return (
@@ -134,7 +332,7 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
                       </CardDescription>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     {canExecute && (
                       <Badge variant="default" className="bg-green-600">
@@ -151,7 +349,7 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 {/* Approval Progress */}
                 <div className="space-y-2">
@@ -180,7 +378,7 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
                             </AvatarFallback>
                           </Avatar>
                           <span className="text-xs">
-                            {approver === currentAccount?.address ? 'You' : shortenAddress(approver)}
+                            {approver === currentAddress ? 'You' : shortenAddress(approver)}
                           </span>
                           <CheckCircle2 className="h-3 w-3 text-green-500" />
                         </div>
@@ -209,17 +407,17 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
                       Details
                     </Button>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    {!hasApproved && !isExpired && (
-                      <Button 
-                        size="sm" 
+                    {!hasApproved && !isExpired && canInteract && (
+                      <Button
+                        size="sm"
                         onClick={() => handleApprove(proposal.objectId)}
                         disabled={approveProposalMutation.isPending}
                       >
                         {approveProposalMutation.isPending ? (
                           <>
-                            <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1" />
+                            <Loader2 className="animate-spin h-3 w-3 mr-1" />
                             Approving...
                           </>
                         ) : (
@@ -230,16 +428,16 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
                         )}
                       </Button>
                     )}
-                    
-                    {canExecute && !isExpired && (
-                      <Button 
+
+                    {canExecute && !isExpired && canInteract && (
+                      <Button
                         onClick={() => handleExecute(proposal.objectId)}
                         disabled={executeProposalMutation.isPending}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         {executeProposalMutation.isPending ? (
                           <>
-                            <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1" />
+                            <Loader2 className="animate-spin h-3 w-3 mr-1" />
                             Executing...
                           </>
                         ) : (
@@ -277,6 +475,24 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
                     <XCircle className="h-4 w-4" />
                     <AlertDescription>
                       This proposal has expired and cannot be executed
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {!canInteract && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      You need proper authorization to interact with this proposal
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Debug Info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <Alert className="bg-muted/50">
+                    <AlertDescription className="text-xs">
+                      <strong>Debug:</strong> Owner Cap ID: {ownerCapId || 'Not found'}
                     </AlertDescription>
                   </Alert>
                 )}

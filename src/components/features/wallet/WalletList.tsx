@@ -1,20 +1,22 @@
+// Fixed version of src/components/features/wallet/WalletList.tsx
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
 import { Skeleton } from '../../ui/skeleton';
-import { 
-  Wallet, 
-  Users, 
-  Plus, 
+import {
+  Wallet,
+  Users,
+  Plus,
   TrendingUp,
   Shield,
   Clock,
   RefreshCw
 } from 'lucide-react';
 import { useWalletStore, useSelectedWallet } from '../../../store/walletStore';
-import { useUserWalletsFromEvents } from '../../../api/hooks/useUserWallets';
+import { useUserWalletsFromOwnerCaps } from '../../../api/hooks/useUserWallets'; // Updated import
 import { useWalletAdapter } from '../../../hooks/useWalletAdapter';
 import { formatSuiAmount, getTimeUntilReset, formatDuration } from '../../../utils/sui';
 import { cn } from '../../../lib/utils';
@@ -24,9 +26,9 @@ export const WalletList: React.FC = () => {
   const { currentAccount } = useWalletAdapter();
   const selectedWallet = useSelectedWallet();
   const setSelectedWallet = useWalletStore(state => state.setSelectedWallet);
-  
-  // Use the new hook that queries wallets from events
-  const { data: userWallets = [], isLoading, error, refetch } = useUserWalletsFromEvents();
+
+  // Use the NEW hook that queries wallets from owner capabilities
+  const { data: userWallets = [], isLoading, error, refetch } = useUserWalletsFromOwnerCaps();
 
   const handleRefresh = async () => {
     try {
@@ -36,6 +38,16 @@ export const WalletList: React.FC = () => {
       toast.error('Failed to refresh wallets');
     }
   };
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 WalletList Debug Info:');
+    console.log('Current user:', currentAccount?.address);
+    console.log('Wallets found:', userWallets.length);
+    console.log('Selected wallet:', selectedWallet?.objectId);
+    console.log('Loading state:', isLoading);
+    console.log('Error state:', error);
+  }, [currentAccount, userWallets, selectedWallet, isLoading, error]);
 
   if (isLoading) {
     return (
@@ -66,7 +78,7 @@ export const WalletList: React.FC = () => {
             My Wallets
           </CardTitle>
           <CardDescription className="text-destructive">
-            Failed to load wallets
+            Failed to load wallets: {error.message}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,7 +102,10 @@ export const WalletList: React.FC = () => {
                 My Wallets
               </CardTitle>
               <CardDescription>
-                You don't have any wallets yet
+                {currentAccount?.address ?
+                  "You don't have any wallets yet" :
+                  "Connect your wallet to see your multi-sig wallets"
+                }
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={handleRefresh}>
@@ -99,14 +114,20 @@ export const WalletList: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => window.location.href = '/wallet/create'}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Your First Wallet
-          </Button>
+          {currentAccount?.address ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.location.href = '/wallet/create'}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create Your First Wallet
+            </Button>
+          ) : (
+            <div className="text-center text-muted-foreground">
+              Please connect your wallet first
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -133,12 +154,13 @@ export const WalletList: React.FC = () => {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-3">
         {userWallets.map((wallet) => {
           const isSelected = selectedWallet?.objectId === wallet.objectId;
           const balance = parseFloat(wallet.balance || '0') / 1_000_000_000; // Convert MIST to SUI
-          
+          const isUserOwner = wallet.owners?.includes(currentAccount?.address || '');
+
           return (
             <div
               key={wallet.objectId}
@@ -146,7 +168,10 @@ export const WalletList: React.FC = () => {
                 "p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent",
                 isSelected && "ring-2 ring-primary bg-accent"
               )}
-              onClick={() => setSelectedWallet(wallet.objectId)}
+              onClick={() => {
+                console.log('🎯 Selecting wallet:', wallet.objectId);
+                setSelectedWallet(wallet.objectId);
+              }}
             >
               {/* Wallet Header */}
               <div className="flex items-start justify-between mb-2">
@@ -163,11 +188,16 @@ export const WalletList: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-1">
                   {isSelected && (
                     <Badge variant="default" className="text-xs">
                       Active
+                    </Badge>
+                  )}
+                  {isUserOwner && (
+                    <Badge variant="secondary" className="text-xs">
+                      Owner
                     </Badge>
                   )}
                   {/* Show if wallet was recently created */}
@@ -224,13 +254,24 @@ export const WalletList: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Debug info in development */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-2 pt-2 border-t bg-muted/20 rounded p-2">
+                  <div className="text-xs text-muted-foreground">
+                    <div>Debug: ID = {wallet.objectId}</div>
+                    <div>Owners: {wallet.owners?.length || 0}</div>
+                    <div>User is owner: {isUserOwner ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
 
         {/* Create New Wallet Button */}
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="w-full border-dashed"
           onClick={() => window.location.href = '/wallet/create'}
         >

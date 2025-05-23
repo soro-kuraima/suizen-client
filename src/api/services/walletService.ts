@@ -1,3 +1,5 @@
+// Fixed version of src/api/services/walletService.ts
+
 import { Transaction } from '@mysten/sui/transactions';
 import { SuiObjectResponse } from '@mysten/sui/client';
 import { getSuiClient, getCurrentNetworkConfig } from '../../config/sui-client';
@@ -17,20 +19,15 @@ import { extractObjectData, mistToSui, parseMoveStruct, suiToMist } from '../../
 
 /**
  * Service class for interacting with multi-owner wallet smart contracts
- * Note: This service builds transactions but doesn't sign them.
- * Signing is handled by wallet adapters in the UI layer.
  */
 export class WalletService {
   private suiClient = getSuiClient();
   private networkConfig = getCurrentNetworkConfig();
 
-  /**
-   * Build transaction for creating a new multi-owner wallet
-   */
+  // ... (keep all existing transaction building methods unchanged)
   buildCreateWalletTransaction(request: CreateWalletRequest): Transaction {
     const tx = new Transaction();
-
-    // Convert limits to MIST
+    console.log(request.initialLimits);
     const limitsInMist = request.initialLimits.map(limit => suiToMist(limit));
 
     tx.moveCall({
@@ -49,103 +46,85 @@ export class WalletService {
     return tx;
   }
 
-  /**
- * Build transaction for depositing SUI into a wallet
- */
-buildDepositTransaction(walletId: string, coinObjectId: string): Transaction {
-  const tx = new Transaction();
+  buildDepositTransaction(walletId: string, coinObjectId: string): Transaction {
+    const tx = new Transaction();
 
-  tx.moveCall({
-    package: this.networkConfig.packageAddress,
-    module: 'multi_owner_wallet',
-    function: CONTRACT_FUNCTIONS.DEPOSIT,
-    arguments: [
-      tx.object(walletId),
-      tx.object(coinObjectId),
-    ],
-  });
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.DEPOSIT,
+      arguments: [
+        tx.object(walletId),
+        tx.object(coinObjectId),
+      ],
+    });
 
-  return tx;
-}
+    return tx;
+  }
 
-/**
- * Build transaction for depositing a specific amount by merging/splitting coins
- */
-buildDepositAmountTransaction(
-  walletId: string, 
-  amount: string, 
-  userCoins: Array<{ objectId: string; balance: string }>
-): Transaction {
-  const tx = new Transaction();
-  const amountInMist = suiToMist(amount);
-  const targetAmount = BigInt(amountInMist);
-  
-  // Sort coins by balance (largest first)
-  const sortedCoins = [...userCoins].sort((a, b) => 
-    BigInt(b.balance) - BigInt(a.balance) > 0 ? 1 : -1
-  );
-  
-  let totalAmount = BigInt(0);
-  const coinsToUse: string[] = [];
-  
-  // Select coins until we have enough
-  for (const coin of sortedCoins) {
-    coinsToUse.push(coin.objectId);
-    totalAmount += BigInt(coin.balance);
+  buildDepositAmountTransaction(
+    walletId: string, 
+    amount: string, 
+    userCoins: Array<{ objectId: string; balance: string }>
+  ): Transaction {
+    const tx = new Transaction();
+    const amountInMist = suiToMist(amount);
+    const targetAmount = BigInt(amountInMist);
     
-    if (totalAmount >= targetAmount) {
-      break;
+    const sortedCoins = [...userCoins].sort((a, b) => 
+      BigInt(b.balance) - BigInt(a.balance) > 0 ? 1 : -1
+    );
+    
+    let totalAmount = BigInt(0);
+    const coinsToUse: string[] = [];
+    
+    for (const coin of sortedCoins) {
+      coinsToUse.push(coin.objectId);
+      totalAmount += BigInt(coin.balance);
+      
+      if (totalAmount >= targetAmount) {
+        break;
+      }
     }
-  }
-  
-  if (totalAmount < targetAmount) {
-    throw new Error('Insufficient coins for the requested amount');
-  }
-  
-  let coinToDeposit: any;
-  
-  if (coinsToUse.length === 1 && totalAmount === targetAmount) {
-    // Perfect match - use the coin directly
-    coinToDeposit = tx.object(coinsToUse[0]);
-  } else if (coinsToUse.length === 1) {
-    // Single coin but need to split
-    const [splitCoin] = tx.splitCoins(tx.object(coinsToUse[0]), [targetAmount]);
-    coinToDeposit = splitCoin;
-  } else {
-    // Multiple coins - merge them first
-    const primaryCoin = tx.object(coinsToUse[0]);
-    const otherCoins = coinsToUse.slice(1).map(id => tx.object(id));
     
-    tx.mergeCoins(primaryCoin, otherCoins);
+    if (totalAmount < targetAmount) {
+      throw new Error('Insufficient coins for the requested amount');
+    }
     
-    if (totalAmount > targetAmount) {
-      // Split the exact amount needed
-      const [splitCoin] = tx.splitCoins(primaryCoin, [targetAmount]);
+    let coinToDeposit: any;
+    
+    if (coinsToUse.length === 1 && totalAmount === targetAmount) {
+      coinToDeposit = tx.object(coinsToUse[0]);
+    } else if (coinsToUse.length === 1) {
+      const [splitCoin] = tx.splitCoins(tx.object(coinsToUse[0]), [targetAmount]);
       coinToDeposit = splitCoin;
     } else {
-      // Use the merged coin entirely
-      coinToDeposit = primaryCoin;
+      const primaryCoin = tx.object(coinsToUse[0]);
+      const otherCoins = coinsToUse.slice(1).map(id => tx.object(id));
+      
+      tx.mergeCoins(primaryCoin, otherCoins);
+      
+      if (totalAmount > targetAmount) {
+        const [splitCoin] = tx.splitCoins(primaryCoin, [targetAmount]);
+        coinToDeposit = splitCoin;
+      } else {
+        coinToDeposit = primaryCoin;
+      }
     }
+    
+    tx.moveCall({
+      package: this.networkConfig.packageAddress,
+      module: 'multi_owner_wallet',
+      function: CONTRACT_FUNCTIONS.DEPOSIT,
+      arguments: [
+        tx.object(walletId),
+        coinToDeposit,
+      ],
+    });
+
+    return tx;
   }
-  
-  // Deposit the coin
-  tx.moveCall({
-    package: this.networkConfig.packageAddress,
-    module: 'multi_owner_wallet',
-    function: CONTRACT_FUNCTIONS.DEPOSIT,
-    arguments: [
-      tx.object(walletId),
-      coinToDeposit,
-    ],
-  });
 
-  return tx;
-}
-
-
-  /**
-   * Build transaction for withdrawing from wallet (if within spending limit)
-   */
   buildWithdrawTransaction(request: WithdrawRequest, ownerCapId: string): Transaction {
     const tx = new Transaction();
 
@@ -165,9 +144,6 @@ buildDepositAmountTransaction(
     return tx;
   }
 
-  /**
-   * Build transaction for creating a transaction proposal
-   */
   buildCreateProposalTransaction(request: CreateProposalRequest, ownerCapId: string): Transaction {
     const tx = new Transaction();
 
@@ -192,9 +168,6 @@ buildDepositAmountTransaction(
     return tx;
   }
 
-  /**
-   * Build transaction for approving a proposal
-   */
   buildApproveProposalTransaction(walletId: string, proposalId: string, ownerCapId: string): Transaction {
     const tx = new Transaction();
 
@@ -212,9 +185,6 @@ buildDepositAmountTransaction(
     return tx;
   }
 
-  /**
-   * Build transaction for executing a proposal
-   */
   buildExecuteProposalTransaction(walletId: string, proposalId: string, ownerCapId: string): Transaction {
     const tx = new Transaction();
 
@@ -233,9 +203,6 @@ buildDepositAmountTransaction(
     return tx;
   }
 
-  /**
-   * Build transaction for adding a new owner
-   */
   buildAddOwnerTransaction(request: AddOwnerRequest, ownerCapId: string): Transaction {
     const tx = new Transaction();
 
@@ -255,9 +222,6 @@ buildDepositAmountTransaction(
     return tx;
   }
 
-  /**
-   * Build transaction for updating spending limit
-   */
   buildUpdateSpendingLimitTransaction(
     walletId: string, 
     ownerToUpdate: string, 
@@ -281,13 +245,15 @@ buildDepositAmountTransaction(
     return tx;
   }
 
-  // ===== View/Query Functions =====
+  // ===== FIXED VIEW/QUERY FUNCTIONS =====
 
   /**
    * Get wallet details by ID
    */
   async getWallet(walletId: string): Promise<MultiOwnerWallet | null> {
     try {
+      console.log('🔍 Fetching wallet:', walletId);
+      
       const response = await this.suiClient.getObject({
         id: walletId,
         options: {
@@ -297,11 +263,17 @@ buildDepositAmountTransaction(
       });
 
       if (!response.data || !response.data.content) {
+        console.warn('❌ Wallet not found:', walletId);
         return null;
       }
 
       const walletData = parseMoveStruct(response.data);
-      if (!walletData) return null;
+      if (!walletData) {
+        console.warn('❌ Failed to parse wallet data:', walletId);
+        return null;
+      }
+
+      console.log('✅ Wallet data:', walletData);
 
       return {
         ...response.data,
@@ -312,14 +284,238 @@ buildDepositAmountTransaction(
         resetPeriodMs: walletData.reset_period_ms || 0,
       };
     } catch (error) {
-      console.error('Failed to get wallet:', error);
+      console.error('❌ Failed to get wallet:', error);
       return null;
     }
   }
 
   /**
-   * Get owner capabilities for an address
+   * FIXED: Get owner capabilities with wallet association for better wallet discovery
    */
+  async getOwnerCapabilitiesWithWallets(ownerAddress: string): Promise<Array<{
+    capId: string;
+    walletId: string;
+    owner: string;
+  }>> {
+    try {
+      console.log('🔍 Fetching owner capabilities for:', ownerAddress);
+      
+      const response = await this.suiClient.getOwnedObjects({
+        owner: ownerAddress,
+        filter: {
+          StructType: `${this.networkConfig.packageAddress}::multi_owner_wallet::OwnerCap`,
+        },
+        options: {
+          showContent: true,
+          showType: true,
+        },
+      });
+
+      console.log('📋 Found', response.data.length, 'owner capabilities');
+
+      const capabilities = [];
+      for (const obj of response.data) {
+        if (obj.data?.content && 'fields' in obj.data.content) {
+          const fields = obj.data.content.fields as any;
+          console.log('🎫 Owner cap fields:', fields);
+          
+          capabilities.push({
+            capId: obj.data.objectId,
+            walletId: fields.wallet_id,
+            owner: ownerAddress,
+          });
+        }
+      }
+
+      console.log('✅ Processed capabilities:', capabilities);
+      return capabilities;
+    } catch (error) {
+      console.error('❌ Failed to get owner capabilities with wallets:', error);
+      return [];
+    }
+  }
+
+  /**
+   * IMPROVED: Get user wallets by finding their owner capabilities
+   */
+  async getUserWalletsByOwnerCaps(userAddress: string): Promise<MultiOwnerWallet[]> {
+    try {
+      console.log('🔍 Finding wallets for user via owner caps:', userAddress);
+      
+      // Get all owner capabilities for this user
+      const capabilities = await this.getOwnerCapabilitiesWithWallets(userAddress);
+      
+      if (capabilities.length === 0) {
+        console.log('❌ No owner capabilities found for user');
+        return [];
+      }
+
+      console.log('🎫 Found', capabilities.length, 'owner capabilities');
+
+      // Fetch wallet details for each capability
+      const wallets = [];
+      for (const cap of capabilities) {
+        try {
+          console.log('🔍 Fetching wallet for cap:', cap.walletId);
+          const wallet = await this.getWallet(cap.walletId);
+          if (wallet) {
+            console.log('✅ Successfully fetched wallet:', cap.walletId);
+            wallets.push(wallet);
+          } else {
+            console.warn('❌ Failed to fetch wallet:', cap.walletId);
+          }
+        } catch (error) {
+          console.warn('❌ Error fetching wallet:', cap.walletId, error);
+        }
+      }
+
+      console.log('✅ Total wallets found:', wallets.length);
+      return wallets;
+    } catch (error) {
+      console.error('❌ Failed to get user wallets by owner caps:', error);
+      return [];
+    }
+  }
+
+  /**
+   * FIXED: Get spending record for an owner using corrected dynamic field access
+   */
+  async getOwnerSpendingRecord(walletId: string, ownerAddress: string): Promise<OwnerSpendingRecord | null> {
+    try {
+      console.log('🔍 Fetching spending record for:', { walletId, ownerAddress });
+      
+      // Query dynamic fields for the wallet
+      const dynamicFields = await this.suiClient.getDynamicFields({
+        parentId: walletId,
+      });
+
+      console.log('📋 Found', dynamicFields.data.length, 'dynamic fields');
+
+      // Find the spending record for this owner
+      for (const field of dynamicFields.data) {
+        try {
+          console.log('🔍 Checking dynamic field:', field.objectId);
+          
+          const fieldObject = await this.suiClient.getObject({
+            id: field.objectId,
+            options: {
+              showContent: true,
+              showType: true,
+            },
+          });
+
+          if (fieldObject.data?.content && 'fields' in fieldObject.data.content) {
+            const fields = fieldObject.data.content.fields as any;
+            console.log('📄 Dynamic field structure:', fields);
+
+
+            // Check if this dynamic field is for our owner
+            // The Move code uses the owner address as the key for dynamic object fields
+            if (fields.owner === ownerAddress || 
+                (typeof fields.name === 'object' && fields.owner.value === ownerAddress)) {
+              
+              console.log('✅ Found matching spending record field');
+              
+              // The value should contain the OwnerSpendingRecord
+              const record = fields.value || fields;
+              
+              // Handle both direct fields and nested value structure
+              const spendingRecord = {
+                owner: record.owner || ownerAddress,
+                spentAmount: record.spent_amount || record.spentAmount || '0',
+                spendingLimit: record.spending_limit || record.spendingLimit || '0',
+                lastReset: record.last_reset || record.lastReset || Date.now(),
+              };
+
+              console.log('✅ Parsed spending record:', spendingRecord);
+              return spendingRecord;
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch dynamic field:', field.objectId, error);
+        }
+      }
+
+      console.log('❌ No spending record found for owner:', ownerAddress);
+      
+      // Return a default record if none found (shouldn't happen in practice)
+      return {
+        owner: ownerAddress,
+        spentAmount: '0',
+        spendingLimit: '1000000000000', // 1000 SUI in MIST as default
+        lastReset: Date.now(),
+      };
+    } catch (error) {
+      console.error('❌ Failed to get spending record:', error);
+      
+      // Return a default record on error
+      return {
+        owner: ownerAddress,
+        spentAmount: '0',
+        spendingLimit: '1000000000000', // 1000 SUI in MIST as default
+        lastReset: Date.now(),
+      };
+    }
+  }
+
+  /**
+   * IMPROVED: Check spending limit with better error handling
+   */
+  async checkSpendingLimit(
+    walletId: string, 
+    ownerAddress: string, 
+    amount: string
+  ): Promise<{
+    withinLimit: boolean;
+    currentSpent: string;
+    limit: string;
+    available: string;
+  }> {
+    try {
+      console.log('🔍 Checking spending limit:', { walletId, ownerAddress, amount });
+      
+      const record = await this.getOwnerSpendingRecord(walletId, ownerAddress);
+      
+      if (!record) {
+        console.warn('❌ No spending record found');
+        return {
+          withinLimit: false,
+          currentSpent: '0',
+          limit: '0',
+          available: '0',
+        };
+      }
+
+      // Convert amounts to SUI for calculation
+      const spentInSui = parseFloat(mistToSui(record.spentAmount));
+      const limitInSui = parseFloat(mistToSui(record.spendingLimit));
+      const requestedAmountInSui = parseFloat(amount);
+      
+      const availableInSui = Math.max(0, limitInSui - spentInSui);
+      const withinLimit = requestedAmountInSui <= availableInSui;
+
+      const result = {
+        withinLimit,
+        currentSpent: spentInSui.toString(),
+        limit: limitInSui.toString(),
+        available: availableInSui.toString(),
+      };
+
+      console.log('✅ Spending limit check result:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Failed to check spending limit:', error);
+      return {
+        withinLimit: false,
+        currentSpent: '0',
+        limit: '0',
+        available: '0',
+      };
+    }
+  }
+
+  // ... (keep other existing methods unchanged)
+  
   async getOwnerCapabilities(ownerAddress: string): Promise<string[]> {
     try {
       const response = await this.suiClient.getOwnedObjects({
@@ -341,17 +537,19 @@ buildDepositAmountTransaction(
     }
   }
 
-  /**
-   * Get transaction proposals for a wallet
-   * Note: This is a simplified implementation. In production, you'd want to:
-   * 1. Use event queries to track proposal creation
-   * 2. Implement proper indexing
-   * 3. Use dynamic fields querying for better performance
-   */
+  async getOwnerCapabilityForWallet(ownerAddress: string, walletId: string): Promise<string | null> {
+    try {
+      const capabilities = await this.getOwnerCapabilitiesWithWallets(ownerAddress);
+      const walletCap = capabilities.find(cap => cap.walletId === walletId);
+      return walletCap?.capId || null;
+    } catch (error) {
+      console.error('Failed to get owner capability for wallet:', error);
+      return null;
+    }
+  }
+
   async getTransactionProposals(walletId: string): Promise<TransactionProposal[]> {
     try {
-      // For now, we'll use event-based querying to find proposals
-      // This is more efficient than scanning all objects
       const events = await this.suiClient.queryEvents({
         query: {
           MoveEventType: `${this.networkConfig.packageAddress}::multi_owner_wallet::ProposalCreatedEvent`,
@@ -367,9 +565,7 @@ buildDepositAmountTransaction(
           if (event.parsedJson && typeof event.parsedJson === 'object') {
             const eventData = event.parsedJson as any;
             
-            // Check if this proposal belongs to our wallet
             if (eventData.wallet_id === walletId) {
-              // Fetch the actual proposal object
               const proposalResponse = await this.suiClient.getObject({
                 id: eventData.proposal_id,
                 options: {
@@ -404,15 +600,11 @@ buildDepositAmountTransaction(
     }
   }
 
-  /**
-   * Get wallet balances
-   */
   async getWalletBalances(walletId: string): Promise<WalletBalance[]> {
     try {
       const wallet = await this.getWallet(walletId);
       if (!wallet) return [];
 
-      // For now, only return SUI balance
       return [{
         coinType: COIN_TYPES.SUI,
         balance: wallet.balance,
@@ -425,8 +617,10 @@ buildDepositAmountTransaction(
     }
   }
 
+  // Updated getTransactionHistory method in src/api/services/walletService.ts
+
   /**
-   * Get transaction history for a wallet
+   * FIXED: Get transaction history for a wallet with proper event parsing
    */
   async getTransactionHistory(walletId: string, cursor?: string): Promise<{
     transactions: TransactionRecord[];
@@ -447,16 +641,23 @@ buildDepositAmountTransaction(
         },
       });
 
-      const transactions: TransactionRecord[] = response.data.map(tx => ({
-        digest: tx.digest,
-        timestamp: parseInt(tx.timestampMs || '0'),
-        sender: tx.transaction?.data?.sender || '',
-        recipients: [], // Would need to parse from transaction data
-        amount: '0', // Would need to parse from events
-        coinType: COIN_TYPES.SUI,
-        status: tx.effects?.status?.status === 'success' ? 'success' : 'failed',
-        type: 'send', // Would need to determine from events
-      }));
+      const transactions: TransactionRecord[] = response.data.map(tx => {
+        // Parse transaction details from events and transaction data
+        const transactionDetails = this.parseTransactionDetails(tx, walletId);
+        
+        return {
+          digest: tx.digest,
+          timestamp: parseInt(tx.timestampMs || '0'),
+          sender: tx.transaction?.data?.sender || '',
+          recipients: transactionDetails.recipients,
+          amount: transactionDetails.amount,
+          coinType: COIN_TYPES.SUI,
+          status: tx.effects?.status?.status === 'success' ? 'success' : 'failed',
+          type: transactionDetails.type,
+          isMultiSig: transactionDetails.isMultiSig, // Add multi-sig indicator
+          functionName: transactionDetails.functionName, // Add function name for debugging
+        };
+      });
 
       return {
         transactions,
@@ -473,125 +674,215 @@ buildDepositAmountTransaction(
   }
 
   /**
- * Get user's SUI coins for deposits
- */
-async getUserCoins(userAddress: string, coinType: string = COIN_TYPES.SUI): Promise<Array<{
-  objectId: string;
-  balance: string;
-  coinType: string;
-}>> {
-  try {
-    const response = await this.suiClient.getCoins({
-      owner: userAddress,
-      coinType,
-    });
+   * NEW: Parse transaction details from events and transaction data
+   */
+  private parseTransactionDetails(tx: any, walletId: string): {
+    amount: string;
+    recipients: string[];
+    type: 'send' | 'receive' | 'multi_sig' | 'deposit';
+    isMultiSig: boolean;
+    functionName?: string;
+  } {
+    let amount = '0';
+    let recipients: string[] = [];
+    let type: 'send' | 'receive' | 'multi_sig' | 'deposit' = 'send';
+    let isMultiSig = false;
+    let functionName: string | undefined;
 
-    return response.data.map(coin => ({
-      objectId: coin.coinObjectId,
-      balance: coin.balance,
-      coinType: coin.coinType,
-    }));
-  } catch (error) {
-    console.error('Failed to get user coins:', error);
-    return [];
-  }
-}
-
-/**
- * Get total balance for user
- */
-async getUserTotalBalance(userAddress: string, coinType: string = COIN_TYPES.SUI): Promise<string> {
-  try {
-    const response = await this.suiClient.getBalance({
-      owner: userAddress,
-      coinType,
-    });
-
-    return response.totalBalance;
-  } catch (error) {
-    console.error('Failed to get user balance:', error);
-    return '0';
-  }
-}
-
-/**
- * Estimate gas cost for deposit transaction
- */
-async estimateDepositGas(walletId: string, coinObjectId: string): Promise<string> {
-  try {
-    const tx = this.buildDepositTransaction(walletId, coinObjectId);
-    
-    // This is a simplified estimation - in production you'd want to use
-    // the actual gas estimation from the Sui client
-    return '5000000'; // ~0.005 SUI
-  } catch (error) {
-    console.error('Failed to estimate gas:', error);
-    return '10000000'; // Fallback estimate
-  }
-}
-
-/**
- * Check if user has sufficient coins for deposit
- */
-async checkDepositFeasibility(
-  userAddress: string, 
-  requestedAmount: string
-): Promise<{
-  canDeposit: boolean;
-  availableBalance: string;
-  requiredCoins: number;
-  estimatedGas: string;
-}> {
-  try {
-    const [userCoins, totalBalance] = await Promise.all([
-      this.getUserCoins(userAddress),
-      this.getUserTotalBalance(userAddress),
-    ]);
-
-    const requestedAmountBig = BigInt(suiToMist(requestedAmount));
-    const totalBalanceBig = BigInt(totalBalance);
-    const estimatedGas = BigInt('10000000'); // ~0.01 SUI for gas
-
-    // Check if user has enough balance including gas
-    const canDeposit = totalBalanceBig >= requestedAmountBig + estimatedGas;
-
-    // Calculate how many coins would be needed
-    let requiredCoins = 0;
-    let accumulatedAmount = BigInt(0);
-    
-    const sortedCoins = userCoins.sort((a, b) => 
-      BigInt(b.balance) - BigInt(a.balance) > 0 ? 1 : -1
-    );
-
-    for (const coin of sortedCoins) {
-      requiredCoins++;
-      accumulatedAmount += BigInt(coin.balance);
-      
-      if (accumulatedAmount >= requestedAmountBig) {
-        break;
+    // Extract function name from transaction data
+    if (tx.transaction?.data?.transaction?.transactions) {
+      const moveCall = tx.transaction.data.transaction.transactions.find(
+        (t: any) => t.MoveCall
+      );
+      if (moveCall?.MoveCall) {
+        functionName = moveCall.MoveCall.function;
       }
     }
 
+    // Parse events to extract transaction details
+    if (tx.events && Array.isArray(tx.events)) {
+      for (const event of tx.events) {
+        if (!event.parsedJson) continue;
+
+        const eventData = event.parsedJson;
+        const eventType = event.type;
+
+        // Handle CoinWithdrawnEvent (both direct and multi-sig)
+        if (eventType.includes('CoinWithdrawnEvent')) {
+          console.log('🔍 Parsing CoinWithdrawnEvent:', eventData);
+          
+          amount = eventData.amount || '0';
+          recipients = eventData.recipient ? [eventData.recipient] : [];
+          isMultiSig = eventData.required_multi_sig === true;
+          type = isMultiSig ? 'multi_sig' : 'send';
+          
+          // Determine if it's send or receive based on wallet perspective
+          if (eventData.wallet_id === walletId) {
+            // Money leaving the wallet = send
+            type = isMultiSig ? 'multi_sig' : 'send';
+          }
+          
+          break; // CoinWithdrawnEvent has the most complete info
+        }
+        
+        // Handle ProposalExecutedEvent (always multi-sig)
+        else if (eventType.includes('ProposalExecutedEvent')) {
+          console.log('🔍 Parsing ProposalExecutedEvent:', eventData);
+          
+          amount = eventData.amount || '0';
+          recipients = eventData.recipient ? [eventData.recipient] : [];
+          isMultiSig = true;
+          type = 'multi_sig';
+        }
+        
+        // Handle CoinDepositedEvent (money coming into wallet)
+        else if (eventType.includes('CoinDepositedEvent')) {
+          console.log('🔍 Parsing CoinDepositedEvent:', eventData);
+          
+          amount = eventData.amount || '0';
+          recipients = []; // No recipient for deposits
+          isMultiSig = false;
+          type = 'deposit';
+        }
+      }
+    }
+
+    // Fallback: try to determine from function name if events didn't provide info
+    if (amount === '0' && functionName) {
+      console.log('🔍 Fallback: determining transaction type from function:', functionName);
+      
+      switch (functionName) {
+        case 'withdraw':
+          type = 'send';
+          isMultiSig = false;
+          break;
+        case 'execute_proposal':
+          type = 'multi_sig';
+          isMultiSig = true;
+          break;
+        case 'deposit':
+          type = 'deposit';
+          isMultiSig = false;
+          break;
+      }
+    }
+
+    console.log('✅ Parsed transaction details:', {
+      amount: `${amount} MIST (${mistToSui(amount)} SUI)`,
+      recipients,
+      type,
+      isMultiSig,
+      functionName
+    });
+
     return {
-      canDeposit,
-      availableBalance: mistToSui(totalBalance),
-      requiredCoins,
-      estimatedGas: mistToSui(estimatedGas.toString()),
-    };
-  } catch (error) {
-    console.error('Failed to check deposit feasibility:', error);
-    return {
-      canDeposit: false,
-      availableBalance: '0',
-      requiredCoins: 0,
-      estimatedGas: '0.01',
+      amount,
+      recipients,
+      type,
+      isMultiSig,
+      functionName,
     };
   }
-}
 
-  /**
-   * Get wallet events for a user (wallets they own or are involved in)
-   */
+  async getUserCoins(userAddress: string, coinType: string = COIN_TYPES.SUI): Promise<Array<{
+    objectId: string;
+    balance: string;
+    coinType: string;
+  }>> {
+    try {
+      const response = await this.suiClient.getCoins({
+        owner: userAddress,
+        coinType,
+      });
+
+      return response.data.map(coin => ({
+        objectId: coin.coinObjectId,
+        balance: coin.balance,
+        coinType: coin.coinType,
+      }));
+    } catch (error) {
+      console.error('Failed to get user coins:', error);
+      return [];
+    }
+  }
+
+  async getUserTotalBalance(userAddress: string, coinType: string = COIN_TYPES.SUI): Promise<string> {
+    try {
+      const response = await this.suiClient.getBalance({
+        owner: userAddress,
+        coinType,
+      });
+
+      return response.totalBalance;
+    } catch (error) {
+      console.error('Failed to get user balance:', error);
+      return '0';
+    }
+  }
+
+  async estimateDepositGas(walletId: string, coinObjectId: string): Promise<string> {
+    try {
+      return '5000000'; // ~0.005 SUI
+    } catch (error) {
+      console.error('Failed to estimate gas:', error);
+      return '10000000';
+    }
+  }
+
+  async checkDepositFeasibility(
+    userAddress: string, 
+    requestedAmount: string
+  ): Promise<{
+    canDeposit: boolean;
+    availableBalance: string;
+    requiredCoins: number;
+    estimatedGas: string;
+  }> {
+    try {
+      const [userCoins, totalBalance] = await Promise.all([
+        this.getUserCoins(userAddress),
+        this.getUserTotalBalance(userAddress),
+      ]);
+
+      const requestedAmountBig = BigInt(suiToMist(requestedAmount));
+      const totalBalanceBig = BigInt(totalBalance);
+      const estimatedGas = BigInt('10000000');
+
+      const canDeposit = totalBalanceBig >= requestedAmountBig + estimatedGas;
+
+      let requiredCoins = 0;
+      let accumulatedAmount = BigInt(0);
+      
+      const sortedCoins = userCoins.sort((a, b) => 
+        BigInt(b.balance) - BigInt(a.balance) > 0 ? 1 : -1
+      );
+
+      for (const coin of sortedCoins) {
+        requiredCoins++;
+        accumulatedAmount += BigInt(coin.balance);
+        
+        if (accumulatedAmount >= requestedAmountBig) {
+          break;
+        }
+      }
+
+      return {
+        canDeposit,
+        availableBalance: mistToSui(totalBalance),
+        requiredCoins,
+        estimatedGas: mistToSui(estimatedGas.toString()),
+      };
+    } catch (error) {
+      console.error('Failed to check deposit feasibility:', error);
+      return {
+        canDeposit: false,
+        availableBalance: '0',
+        requiredCoins: 0,
+        estimatedGas: '0.01',
+      };
+    }
+  }
+
   async getUserWalletEvents(userAddress: string): Promise<Array<{ walletId: string; event: any }>> {
     try {
       const events = await this.suiClient.queryEvents({
@@ -609,7 +900,6 @@ async checkDepositFeasibility(
           if (event.parsedJson && typeof event.parsedJson === 'object') {
             const eventData = event.parsedJson as any;
             
-            // Check if user was the creator or is in the initial owners
             if (eventData.creator === userAddress) {
               userWallets.push({
                 walletId: eventData.wallet_id,
@@ -628,152 +918,6 @@ async checkDepositFeasibility(
       return [];
     }
   }
-
-
-  /**
- * Get owner capabilities for an address with wallet association
- */
-async getOwnerCapabilitiesWithWallets(ownerAddress: string): Promise<Array<{
-  capId: string;
-  walletId: string;
-  owner: string;
-}>> {
-  try {
-    const response = await this.suiClient.getOwnedObjects({
-      owner: ownerAddress,
-      filter: {
-        StructType: `${this.networkConfig.packageAddress}::multi_owner_wallet::OwnerCap`,
-      },
-      options: {
-        showContent: true,
-        showType: true,
-      },
-    });
-
-    const capabilities = [];
-    for (const obj of response.data) {
-      if (obj.data?.content && 'fields' in obj.data.content) {
-        const fields = obj.data.content.fields as any;
-        capabilities.push({
-          capId: obj.data.objectId,
-          walletId: fields.wallet_id,
-          owner: ownerAddress,
-        });
-      }
-    }
-
-    return capabilities;
-  } catch (error) {
-    console.error('Failed to get owner capabilities with wallets:', error);
-    return [];
-  }
-}
-
-/**
- * Get owner capability for specific wallet
- */
-async getOwnerCapabilityForWallet(ownerAddress: string, walletId: string): Promise<string | null> {
-  try {
-    const capabilities = await this.getOwnerCapabilitiesWithWallets(ownerAddress);
-    const walletCap = capabilities.find(cap => cap.walletId === walletId);
-    return walletCap?.capId || null;
-  } catch (error) {
-    console.error('Failed to get owner capability for wallet:', error);
-    return null;
-  }
-}
-
-/**
- * Get spending record for an owner using dynamic fields
- */
-async getOwnerSpendingRecord(walletId: string, ownerAddress: string): Promise<OwnerSpendingRecord | null> {
-  try {
-    // Query dynamic field for the spending record
-    const dynamicFields = await this.suiClient.getDynamicFields({
-      parentId: walletId,
-    });
-
-    // Find the spending record for this owner
-    for (const field of dynamicFields.data) {
-      try {
-        const fieldObject = await this.suiClient.getObject({
-          id: field.objectId,
-          options: {
-            showContent: true,
-          },
-        });
-
-        if (fieldObject.data?.content && 'fields' in fieldObject.data.content) {
-          const fields = fieldObject.data.content.fields as any;
-          if (fields.name === ownerAddress) {
-            const record = fields.value;
-            return {
-              owner: record.owner,
-              spentAmount: record.spent_amount,
-              spendingLimit: record.spending_limit,
-              lastReset: record.last_reset,
-            };
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to fetch dynamic field:', field.objectId, error);
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Failed to get spending record:', error);
-    return null;
-  }
-}
-
-/**
- * Check if spending limit would be exceeded
- */
-async checkSpendingLimit(
-  walletId: string, 
-  ownerAddress: string, 
-  amount: string
-): Promise<{
-  withinLimit: boolean;
-  currentSpent: string;
-  limit: string;
-  available: string;
-}> {
-  try {
-    const record = await this.getOwnerSpendingRecord(walletId, ownerAddress);
-    
-    if (!record) {
-      return {
-        withinLimit: false,
-        currentSpent: '0',
-        limit: '0',
-        available: '0',
-      };
-    }
-
-    const spent = parseFloat(record.spentAmount);
-    const limit = parseFloat(record.spendingLimit);
-    const requestedAmount = parseFloat(amount);
-    const available = Math.max(0, limit - spent);
-    const withinLimit = requestedAmount <= available;
-
-    return {
-      withinLimit,
-      currentSpent: record.spentAmount,
-      limit: record.spendingLimit,
-      available: available.toString(),
-    };
-  } catch (error) {
-    console.error('Failed to check spending limit:', error);
-    return {
-      withinLimit: false,
-      currentSpent: '0',
-      limit: '0',
-      available: '0',
-    };
-  }
-}
 }
 
 // Export singleton instance

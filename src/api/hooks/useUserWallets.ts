@@ -1,3 +1,5 @@
+// Fixed version of src/api/hooks/useUserWallets.ts
+
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useWalletStore } from '../../store/walletStore';
@@ -6,7 +8,55 @@ import { walletService } from '../services/walletService';
 import { WALLET_QUERY_KEYS } from './useWallet';
 
 /**
- * Hook to fetch and manage user's wallets
+ * IMPROVED: Hook to fetch user's wallets using owner capabilities 
+ * This will find wallets where the user is an owner, not just creator
+ */
+export const useUserWalletsFromOwnerCaps = () => {
+  const currentAddress = useCurrentAddress();
+  const { setWallets } = useWalletStore();
+
+  const query = useQuery({
+    queryKey: [...WALLET_QUERY_KEYS.wallets, 'ownerCaps', currentAddress],
+    queryFn: async () => {
+      if (!currentAddress) {
+        console.log('❌ No current address, returning empty wallets');
+        return [];
+      }
+      
+      try {
+        console.log('🔍 Fetching wallets for user via owner caps:', currentAddress);
+        
+        // Use the new method that finds wallets via owner capabilities
+        const wallets = await walletService.getUserWalletsByOwnerCaps(currentAddress);
+        
+        console.log('✅ Found', wallets.length, 'wallets for user:', currentAddress);
+        
+        return wallets;
+        
+      } catch (error) {
+        console.error('❌ Failed to fetch user wallets via owner caps:', error);
+        return [];
+      }
+    },
+    enabled: !!currentAddress,
+    staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: true,
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  // Update store when data changes
+  useEffect(() => {
+    if (query.data) {
+      console.log('📝 Updating wallet store with', query.data.length, 'wallets');
+      setWallets(query.data);
+    }
+  }, [query.data, setWallets]);
+
+  return query;
+};
+
+/**
+ * Original hook - now deprecated but kept for backward compatibility
  */
 export const useUserWallets = () => {
   const currentAddress = useCurrentAddress();
@@ -26,7 +76,6 @@ export const useUserWallets = () => {
         }
 
         // For each owner cap, we need to find the associated wallet
-        // This is a simplified approach - in a real app, you'd have better indexing
         const wallets = [];
         
         // For now, we'll create mock wallets based on owner caps
@@ -35,11 +84,10 @@ export const useUserWallets = () => {
           const capId = ownerCaps[i];
           
           // Try to find associated wallet (this is simplified)
-          // In reality, you'd need to query the blockchain for wallets where this user is an owner
           const mockWallet = {
-            objectId: `wallet_${i}_${Date.now()}`, // This should be the actual wallet ID
+            objectId: `wallet_${i}_${Date.now()}`,
             balance: '1000000000', // 1 SUI in MIST
-            owners: [currentAddress], // This should include all owners
+            owners: [currentAddress],
             requiredApprovals: 2,
             createdAt: Date.now(),
             resetPeriodMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -73,7 +121,8 @@ export const useUserWallets = () => {
 };
 
 /**
- * Enhanced hook that queries actual wallet objects by events
+ * FIXED: Enhanced hook that queries actual wallet objects by events
+ * Now also checks if user is an owner, not just creator
  */
 export const useUserWalletsFromEvents = () => {
   const currentAddress = useCurrentAddress();
@@ -85,7 +134,18 @@ export const useUserWalletsFromEvents = () => {
       if (!currentAddress) return [];
       
       try {
-        // Query WalletCreatedEvent events where current user is involved
+        console.log('🔍 Fetching wallets via events for:', currentAddress);
+        
+        // First, try to get wallets via owner capabilities (more reliable)
+        const walletsFromCaps = await walletService.getUserWalletsByOwnerCaps(currentAddress);
+        
+        if (walletsFromCaps.length > 0) {
+          console.log('✅ Found wallets via owner caps:', walletsFromCaps.length);
+          return walletsFromCaps;
+        }
+        
+        // Fallback: Query WalletCreatedEvent events where current user might be involved
+        console.log('🔄 Fallback: Checking creation events...');
         const events = await walletService.getUserWalletEvents(currentAddress);
         
         const walletList = [];
@@ -100,6 +160,7 @@ export const useUserWalletsFromEvents = () => {
           }
         }
         
+        console.log('✅ Found wallets via events:', walletList.length);
         return walletList;
         
       } catch (error) {
@@ -121,3 +182,9 @@ export const useUserWalletsFromEvents = () => {
 
   return query;
 };
+
+/**
+ * RECOMMENDED: Use this hook - it's the most reliable
+ * This uses owner capabilities to find wallets where the user is an owner
+ */
+export default useUserWalletsFromOwnerCaps;
