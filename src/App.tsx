@@ -7,7 +7,6 @@ import { Toaster } from './components/ui/sonner';
 import { WalletProvider } from './providers/WalletProvider';
 import { AppRoutes } from './routes/AppRoutes';
 import '@mysten/dapp-kit/dist/index.css'; // Import dApp Kit styles
-import './App.css';
 
 // Create a client for non-wallet related queries
 const queryClient = new QueryClient({
@@ -45,7 +44,7 @@ function App() {
           <WalletProvider defaultNetwork="devnet">
             <div className="min-h-screen bg-background font-sans antialiased">
               <AppRoutes />
-              <Toaster 
+              <Toaster
                 position="top-right"
                 toastOptions={{
                   duration: 4000,
@@ -55,10 +54,10 @@ function App() {
             </div>
           </WalletProvider>
         </BrowserRouter>
-        
+
         {/* React Query Devtools - only in development */}
         {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools 
+          <ReactQueryDevtools
             initialIsOpen={false}
           />
         )}

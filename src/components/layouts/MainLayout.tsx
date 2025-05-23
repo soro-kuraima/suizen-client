@@ -12,7 +12,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children, showSidebar = 
     <div className="flex h-screen bg-background">
       {/* Sidebar - only show when specified */}
       {showSidebar && (
-        <aside className="hidden md:flex md:w-52 md:flex-col">
+        <aside className="hidden md:flex md:w-64 md:flex-col">
           <Sidebar />
         </aside>
       )}

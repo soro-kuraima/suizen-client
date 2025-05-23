@@ -144,12 +144,12 @@ const WalletPage: React.FC = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl">
         {/* Wallet List Sidebar */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-2"
+          className="lg:col-span-1"
         >
           <WalletList />
         </motion.div>
