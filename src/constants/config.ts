@@ -5,12 +5,6 @@ export const DEFAULT_NETWORK = 'devnet';
 
 // Network configurations
 export const NETWORKS: Record<string, NetworkConfig> = {
-  mainnet: {
-    name: 'Sui Mainnet',
-    rpcUrl: 'https://fullnode.mainnet.sui.io:443',
-    packageAddress: '0x...', // Replace with your deployed package address
-    explorerUrl: 'https://explorer.sui.io',
-  },
   testnet: {
     name: 'Sui Testnet',
     rpcUrl: 'https://fullnode.testnet.sui.io:443',

@@ -2,15 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Users, 
-  Shield, 
-  Clock, 
+import {
+  ArrowLeft,
+  Users,
+  Shield,
+  Clock,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
@@ -26,14 +24,14 @@ interface WalletCreationData {
   // Basic setup
   requiredApprovals: number;
   resetPeriodMs: number;
-  
+
   // Owners
   owners: Array<{
     address: string;
     name: string;
     spendingLimit: string;
   }>;
-  
+
   // Additional settings
   walletName: string;
   description: string;
@@ -105,7 +103,7 @@ const CreateWalletPage: React.FC = () => {
       };
 
       await createWalletMutation.mutateAsync(request);
-      
+
       toast.success('Multi-owner wallet created successfully!');
       navigate('/wallet');
     } catch (error) {
@@ -171,7 +169,7 @@ const CreateWalletPage: React.FC = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          
+
           <div className="text-center">
             <h1 className="text-3xl font-bold mb-2">Create Multi-Owner Wallet</h1>
             <p className="text-muted-foreground">
@@ -190,29 +188,27 @@ const CreateWalletPage: React.FC = () => {
               </div>
               <Progress value={progress} className="h-2" />
             </div>
-            
+
             {/* Step Indicators */}
             <div className="flex justify-between">
               {STEPS.map((step, index) => {
                 const isActive = currentStep === step.id;
                 const isCompleted = currentStep > step.id;
                 const IconComponent = step.icon;
-                
+
                 return (
                   <div
                     key={step.id}
-                    className={`flex flex-col items-center space-y-2 ${
-                      index < STEPS.length - 1 ? 'flex-1' : ''
-                    }`}
+                    className={`flex flex-col items-center space-y-2 ${index < STEPS.length - 1 ? 'flex-1' : ''
+                      }`}
                   >
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
-                        isCompleted
+                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${isCompleted
                           ? 'bg-primary border-primary text-primary-foreground'
                           : isActive
-                          ? 'border-primary text-primary'
-                          : 'border-muted text-muted-foreground'
-                      }`}
+                            ? 'border-primary text-primary'
+                            : 'border-muted text-muted-foreground'
+                        }`}
                     >
                       {isCompleted ? (
                         <CheckCircle2 className="h-5 w-5" />
@@ -220,11 +216,10 @@ const CreateWalletPage: React.FC = () => {
                         <IconComponent className="h-5 w-5" />
                       )}
                     </div>
-                    
+
                     <div className="text-center">
-                      <div className={`text-sm font-medium ${
-                        isActive ? 'text-foreground' : 'text-muted-foreground'
-                      }`}>
+                      <div className={`text-sm font-medium ${isActive ? 'text-foreground' : 'text-muted-foreground'
+                        }`}>
                         {step.title}
                       </div>
                       <div className="text-xs text-muted-foreground hidden sm:block">

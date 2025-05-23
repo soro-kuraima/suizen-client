@@ -6,11 +6,11 @@ import { Label } from '../../ui/label';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { 
-  Clock, 
-  ArrowRight, 
-  ArrowLeft, 
-  User, 
+import {
+  Clock,
+  ArrowRight,
+  ArrowLeft,
+  User,
   Calendar,
   Info
 } from 'lucide-react';
@@ -80,7 +80,7 @@ export const SpendingLimitsForm: React.FC<SpendingLimitsFormProps> = ({
           Set individual spending limits and reset periods for each owner
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Reset Period Configuration */}
         <div className="space-y-4">
@@ -90,9 +90,9 @@ export const SpendingLimitsForm: React.FC<SpendingLimitsFormProps> = ({
               How often spending limits reset for all owners
             </p>
           </div>
-          
-          <Select 
-            value={resetPeriodMs.toString()} 
+
+          <Select
+            value={resetPeriodMs.toString()}
             onValueChange={(value) => setResetPeriodMs(parseInt(value))}
           >
             <SelectTrigger>
@@ -111,12 +111,12 @@ export const SpendingLimitsForm: React.FC<SpendingLimitsFormProps> = ({
               ))}
             </SelectContent>
           </Select>
-          
+
           {selectedPeriod && (
             <Alert>
               <Calendar className="h-4 w-4" />
               <AlertDescription>
-                <strong>Reset Schedule:</strong> {selectedPeriod.description}. 
+                <strong>Reset Schedule:</strong> {selectedPeriod.description}.
                 After each reset period, all owners can spend up to their individual limits again.
               </AlertDescription>
             </Alert>
@@ -134,7 +134,7 @@ export const SpendingLimitsForm: React.FC<SpendingLimitsFormProps> = ({
                 Set spending limits for each owner (in SUI)
               </p>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <Label className="text-sm">Set all to:</Label>
               <Input
@@ -148,7 +148,7 @@ export const SpendingLimitsForm: React.FC<SpendingLimitsFormProps> = ({
               <span className="text-sm text-muted-foreground">SUI</span>
             </div>
           </div>
-          
+
           <div className="space-y-3">
             {owners.map((owner, index) => (
               <div key={index} className="flex items-center space-x-4 p-3 border rounded-lg">
@@ -157,14 +157,14 @@ export const SpendingLimitsForm: React.FC<SpendingLimitsFormProps> = ({
                     {owner.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <div className="flex-1">
                   <div className="font-medium">{owner.name}</div>
                   <div className="text-sm text-muted-foreground">
                     {shortenAddress(owner.address)}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Input
                     type="number"
@@ -229,7 +229,7 @@ export const SpendingLimitsForm: React.FC<SpendingLimitsFormProps> = ({
             <ArrowLeft className="mr-2 h-4 w-4" />
             Previous
           </Button>
-          
+
           <Button onClick={handleNext}>
             Review & Create
             <ArrowRight className="ml-2 h-4 w-4" />

@@ -114,7 +114,7 @@ export const QuickDepositCard: React.FC<QuickDepositCardProps> = ({
                     <div className="space-y-3">
                         {/* Quick Stats */}
                         <div className="grid grid-cols-2 gap-2">
-                            {coins.slice(0, 2).map((coin, index) => (
+                            {coins.slice(0, 2).map((coin) => (
                                 <div key={coin.objectId} className="p-2 border rounded-lg">
                                     <div className="flex items-center space-x-2">
                                         <Coins className="h-3 w-3 text-muted-foreground" />

@@ -10,7 +10,6 @@ import {
   Wallet,
   Users,
   Plus,
-  TrendingUp,
   Shield,
   Clock,
   RefreshCw
@@ -18,7 +17,7 @@ import {
 import { useWalletStore, useSelectedWallet } from '../../../store/walletStore';
 import { useUserWalletsFromOwnerCaps } from '../../../api/hooks/useUserWallets'; // Updated import
 import { useWalletAdapter } from '../../../hooks/useWalletAdapter';
-import { formatSuiAmount, getTimeUntilReset, formatDuration } from '../../../utils/sui';
+import { formatSuiAmount, formatDuration } from '../../../utils/sui';
 import { cn } from '../../../lib/utils';
 import { toast } from 'sonner';
 
@@ -34,6 +33,7 @@ export const WalletList: React.FC = () => {
     try {
       await refetch();
       toast.success('Wallets refreshed');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to refresh wallets');
     }
@@ -157,8 +157,7 @@ export const WalletList: React.FC = () => {
 
       <CardContent className="space-y-3">
         {userWallets.map((wallet) => {
-          const isSelected = selectedWallet?.objectId === wallet.objectId;
-          const balance = parseFloat(wallet.balance || '0') / 1_000_000_000; // Convert MIST to SUI
+          const isSelected = selectedWallet?.objectId === wallet.objectId; // Convert MIST to SUI
           const isUserOwner = wallet.owners?.includes(currentAccount?.address || '');
 
           return (
@@ -255,16 +254,6 @@ export const WalletList: React.FC = () => {
                 </div>
               )}
 
-              {/* Debug info in development */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="mt-2 pt-2 border-t bg-muted/20 rounded p-2">
-                  <div className="text-xs text-muted-foreground">
-                    <div>Debug: ID = {wallet.objectId}</div>
-                    <div>Owners: {wallet.owners?.length || 0}</div>
-                    <div>User is owner: {isUserOwner ? 'Yes' : 'No'}</div>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}

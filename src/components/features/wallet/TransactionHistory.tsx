@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Updated src/components/features/wallet/TransactionHistory.tsx
 
 import React from 'react';
@@ -10,8 +11,6 @@ import {
   Download,
   ExternalLink,
   Filter,
-  Calendar,
-  ArrowUpRight,
   ArrowDownLeft,
   Shield,
   Zap,
@@ -19,7 +18,7 @@ import {
   Users
 } from 'lucide-react';
 import { useTransactionHistory } from '../../../api/hooks/useWallet';
-import { formatSuiAmount, formatTimestamp, shortenAddress, mistToSui } from '../../../utils/sui';
+import { formatTimestamp, shortenAddress, mistToSui } from '../../../utils/sui';
 
 interface TransactionHistoryProps {
   walletId: string;
@@ -144,7 +143,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ walletId
       <Card>
         <CardContent className="p-0">
           <div className="divide-y">
-            {transactions.map((tx, index) => {
+            {transactions.map((tx) => {
               const typeInfo = getTransactionTypeInfo(tx);
               const IconComponent = typeInfo.icon;
               const amountInSui = parseFloat(mistToSui(tx.amount));
@@ -198,13 +197,6 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ walletId
                         <div className="text-xs text-muted-foreground">
                           {formatTimestamp(tx.timestamp, 'long')}
                         </div>
-
-                        {/* Debug Info (Development) */}
-                        {process.env.NODE_ENV === 'development' && tx.functionName && (
-                          <div className="text-xs text-muted-foreground bg-muted/50 px-1 rounded mt-1">
-                            Function: {tx.functionName}
-                          </div>
-                        )}
                       </div>
                     </div>
 

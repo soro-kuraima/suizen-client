@@ -81,7 +81,6 @@ export const useUserWallets = () => {
         // For now, we'll create mock wallets based on owner caps
         // In production, you'd query the actual wallet objects
         for (let i = 0; i < ownerCaps.length; i++) {
-          const capId = ownerCaps[i];
           
           // Try to find associated wallet (this is simplified)
           const mockWallet = {

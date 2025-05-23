@@ -1,4 +1,6 @@
-import React from 'react';
+// Updated src/pages/HomePage.tsx with correct proposal count
+
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -21,14 +23,34 @@ import { getCurrentNetworkConfig } from '../config/sui-client';
 const HomePage: React.FC = () => {
   const { connected } = useWalletAdapter();
   const networkConfig = getCurrentNetworkConfig();
-  const { wallets } = useWalletStore();
 
   // Fetch user wallets to get accurate count
   const { data: userWallets = [], isLoading: walletsLoading } = useUserWalletsFromEvents();
 
+  // Calculate total active proposals across all wallets
+  const activeProposals = useMemo(() => {
+    let total = 0;
+
+    // If we have wallets, check each one for proposals
+    if (userWallets.length > 0) {
+      userWallets.forEach(wallet => {
+        // Use the store to get proposals for this wallet
+        const walletProposals = useWalletStore.getState().getWalletProposals(wallet.objectId);
+
+        // Count only pending proposals (ones that haven't reached required approvals)
+        const pendingProposals = walletProposals.filter(
+          proposal => proposal.approvals.length < (wallet.requiredApprovals || 0)
+        );
+
+        total += pendingProposals.length;
+      });
+    }
+
+    return total;
+  }, [userWallets]);
+
   // Calculate stats
   const totalWallets = userWallets.length;
-  const activeProposals = 0; // TODO: Implement proposal counting when you have that feature
   const networkName = networkConfig.name || 'Testnet';
 
   const features = [
@@ -133,7 +155,7 @@ const HomePage: React.FC = () => {
                 {networkName.charAt(0).toUpperCase() + networkName.slice(1)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Connected to Sui {networkName}
+                Connected to {networkName}
                 {networkName.toLowerCase() === 'testnet' && (
                   <Badge variant="secondary" className="ml-2 text-xs">
                     Test Network

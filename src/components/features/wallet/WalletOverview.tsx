@@ -1,4 +1,5 @@
-import React from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Badge } from '../../ui/badge';
 import { Button } from '../../ui/button';
@@ -13,15 +14,26 @@ import {
   Activity,
   Wallet,
   Send,
-  RefreshCw,
   AlertCircle,
   CheckCircle2,
   Eye
 } from 'lucide-react';
 import { QuickDepositCard } from './QuickDepositCard';
-import { useWallet, useWalletBalances, useWalletProposals, useTransactionHistory } from '../../../api/hooks/useWallet';
+import {
+  useWallet,
+  useWalletBalances,
+  useWalletProposals,
+  useTransactionHistory,
+  useSpendingRecords
+} from '../../../api/hooks/useWallet';
 import { useWalletAdapter } from '../../../hooks/useWalletAdapter';
-import { formatSuiAmount, shortenAddress, formatTimestamp, getTimeUntilReset, formatDuration, hasSpendingLimitReset } from '../../../utils/sui';
+import {
+  shortenAddress,
+  formatSuiAmount,
+  formatTimestamp,
+  formatDuration,
+  mistToSui
+} from '../../../utils/sui';
 
 interface WalletOverviewProps {
   walletId: string;
@@ -33,6 +45,86 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
   const { data: balances, isLoading: balancesLoading } = useWalletBalances(walletId);
   const { data: proposals, isLoading: proposalsLoading } = useWalletProposals(walletId);
   const { data: transactions, isLoading: transactionsLoading } = useTransactionHistory(walletId);
+
+  // Fetch REAL spending records for the current user
+  const { data: spendingRecord, isLoading: spendingLoading } = useSpendingRecords(
+    walletId,
+    currentAccount?.address || ''
+  );
+
+  // Calculate REAL spending data using the fetched record
+  const spendingData = useMemo(() => {
+    if (!spendingRecord || !wallet) {
+      return {
+        spent: 0,
+        limit: 0,
+        lastReset: Date.now(),
+        resetPeriod: wallet?.resetPeriodMs || 24 * 60 * 60 * 1000,
+        available: 0
+      };
+    }
+
+    // Convert from MIST to SUI for display
+    const spentAmount = parseFloat(mistToSui(spendingRecord.spentAmount));
+    const spendingLimit = parseFloat(mistToSui(spendingRecord.spendingLimit));
+
+    return {
+      spent: spentAmount,
+      limit: spendingLimit,
+      lastReset: spendingRecord.lastReset,
+      resetPeriod: wallet.resetPeriodMs,
+      available: Math.max(0, spendingLimit - spentAmount)
+    };
+  }, [spendingRecord, wallet]);
+
+  // Calculate REAL spending percentage
+  const spendingPercentage = useMemo(() => {
+    if (spendingData.limit === 0) return 0;
+    return (spendingData.spent / spendingData.limit) * 100;
+  }, [spendingData]);
+
+  // Calculate REAL time until reset
+  const timeUntilReset = useMemo(() => {
+    if (!wallet || !wallet.resetPeriodMs) {
+      return 0;
+    }
+
+    // Use the wallet's reset period directly
+    const resetPeriod = wallet.resetPeriodMs;
+
+    // If we don't have spending record data, just return a reasonable default
+    // based on the reset period (showing less than one period remaining)
+    if (!spendingRecord || !spendingRecord.lastReset) {
+      return Math.min(resetPeriod / 2, 12 * 60 * 60 * 1000); // Half period or 12 hours, whichever is smaller
+    }
+
+    try {
+      const now = Date.now();
+      const lastReset = typeof spendingRecord.lastReset === 'number'
+        ? spendingRecord.lastReset
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        : parseInt(spendingRecord.lastReset as any);
+
+      // Validate that lastReset is a reasonable timestamp
+      if (isNaN(lastReset) || lastReset <= 0 || lastReset > now + (365 * 24 * 60 * 60 * 1000)) {
+        return resetPeriod / 2; // Return half the reset period as fallback
+      }
+
+      // Calculate when the next reset will occur
+      const msElapsedSinceLastReset = now - lastReset;
+      const periodsElapsed = Math.floor(msElapsedSinceLastReset / resetPeriod);
+      const nextResetTime = lastReset + ((periodsElapsed + 1) * resetPeriod);
+
+      // Return the time remaining until next reset
+      return Math.max(0, nextResetTime - now);
+    } catch (error) {
+      console.error("Error calculating time until reset:", error);
+      return resetPeriod / 2; // Return half the reset period as fallback
+    }
+  }, [spendingRecord, wallet]);
+
+  // Check if user can spend
+  const canSpend = spendingData.spent < spendingData.limit;
 
   console.log("wallet overview mounted");
 
@@ -73,18 +165,6 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
 
   // Check if user is an owner
   const isOwner = wallet.owners?.includes(currentAccount?.address || '');
-
-  // Mock spending data - in real app, this would come from the smart contract
-  const spendingData = {
-    spent: 0.5, // Example: 0.5 SUI spent
-    limit: 1.0, // Example: 1.0 SUI limit
-    lastReset: Date.now() - (12 * 60 * 60 * 1000), // 12 hours ago
-    resetPeriod: wallet.resetPeriodMs
-  };
-
-  const spendingPercentage = (spendingData.spent / spendingData.limit) * 100;
-  const timeUntilReset = getTimeUntilReset(spendingData.lastReset, spendingData.resetPeriod);
-  const canSpend = spendingData.spent < spendingData.limit;
 
   return (
     <div className="space-y-6">
@@ -187,24 +267,32 @@ export const WalletOverview: React.FC<WalletOverviewProps> = ({ walletId }) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Spent this period</span>
-                  <span className="font-medium">
-                    {spendingData.spent} / {spendingData.limit} SUI
-                  </span>
+              {spendingLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-2 w-full" />
+                  <Skeleton className="h-4 w-full" />
                 </div>
-                <Progress value={spendingPercentage} className="h-2" />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{spendingPercentage.toFixed(1)}% used</span>
-                  <span>{(spendingData.limit - spendingData.spent).toFixed(2)} SUI remaining</span>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Spent this period</span>
+                    <span className="font-medium">
+                      {spendingData.spent.toFixed(4)} / {spendingData.limit.toFixed(4)} SUI
+                    </span>
+                  </div>
+                  <Progress value={spendingPercentage} className="h-2" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{spendingPercentage.toFixed(1)}% used</span>
+                    <span>{spendingData.available.toFixed(4)} SUI remaining</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Next reset in</span>
+                  <span className="text-sm">Spending limits reset in</span>
                 </div>
                 <Badge variant="outline">
                   {formatDuration(timeUntilReset)}

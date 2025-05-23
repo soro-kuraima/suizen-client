@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { walletService } from '../services/walletService';
@@ -210,7 +211,7 @@ export const useCreateWallet = () => {
 function extractWalletIdFromTransaction(result: any): string | null {
   try {
     // Look for created objects in the transaction effects
-    if (result.effects?.created) {
+    if (result?.effects?.created) {
       for (const created of result.effects.created) {
         // Look for the wallet object (usually the shared object)
         if (created.reference?.objectId) {

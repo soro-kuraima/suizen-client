@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Fixed version of src/components/features/wallet/ProposalList.tsx
 
 import React from 'react';
@@ -197,19 +198,6 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
             You are not an owner of this wallet and cannot interact with proposals
           </CardDescription>
         </CardHeader>
-
-        {process.env.NODE_ENV === 'development' && (
-          <CardContent>
-            <Alert>
-              <AlertDescription className="text-xs">
-                <strong>Debug Info:</strong><br />
-                Current Address: {currentAddress}<br />
-                Wallet Owners: {wallet?.owners?.join(', ') || 'Loading...'}<br />
-                Is Owner: {isOwner ? 'Yes' : 'No'}
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        )}
       </Card>
     );
   }
@@ -239,20 +227,6 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
             Owner capability not found. You may not have the required permissions.
           </CardDescription>
         </CardHeader>
-
-        {process.env.NODE_ENV === 'development' && (
-          <CardContent>
-            <Alert>
-              <AlertDescription className="text-xs">
-                <strong>Debug Info:</strong><br />
-                Owner Cap ID: {ownerCapId || 'Not found'}<br />
-                Current Address: {currentAddress}<br />
-                Is Owner: {isOwner ? 'Yes' : 'No'}<br />
-                Has Owner Cap: {hasOwnerCap ? 'Yes' : 'No'}
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        )}
       </Card>
     );
   }
@@ -488,14 +462,6 @@ export const ProposalList: React.FC<ProposalListProps> = ({ walletId }) => {
                   </Alert>
                 )}
 
-                {/* Debug Info */}
-                {process.env.NODE_ENV === 'development' && (
-                  <Alert className="bg-muted/50">
-                    <AlertDescription className="text-xs">
-                      <strong>Debug:</strong> Owner Cap ID: {ownerCapId || 'Not found'}
-                    </AlertDescription>
-                  </Alert>
-                )}
               </CardContent>
             </Card>
           );

@@ -1,7 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Fixed version of src/api/services/walletService.ts
 
 import { Transaction } from '@mysten/sui/transactions';
-import { SuiObjectResponse } from '@mysten/sui/client';
 import { getSuiClient, getCurrentNetworkConfig } from '../../config/sui-client';
 import { CONTRACT_FUNCTIONS, COIN_TYPES } from '../../constants/config';
 import { 
@@ -15,7 +15,7 @@ import {
   WalletBalance,
   TransactionRecord
 } from '../../types/wallet';
-import { extractObjectData, mistToSui, parseMoveStruct, suiToMist } from '../../utils/sui';
+import { mistToSui, parseMoveStruct, suiToMist } from '../../utils/sui';
 
 /**
  * Service class for interacting with multi-owner wallet smart contracts
@@ -820,6 +820,7 @@ export class WalletService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async estimateDepositGas(walletId: string, coinObjectId: string): Promise<string> {
     try {
       return '5000000'; // ~0.005 SUI

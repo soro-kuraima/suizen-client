@@ -1,20 +1,18 @@
-import React from 'react';
-import { 
-  SuiClientProvider, 
+import React, { useEffect } from 'react';
+import {
+  SuiClientProvider,
   WalletProvider as DAppKitWalletProvider,
   createNetworkConfig
 } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NETWORKS } from '../constants/config';
+import { useConnectionStore } from '../store/connectionStore';
 
 // Create network configuration
 const { networkConfig } = createNetworkConfig({
   testnet: {
     url: getFullnodeUrl('testnet'),
-  },
-  mainnet: {
-    url: getFullnodeUrl('mainnet'),
   },
   devnet: {
     url: getFullnodeUrl('devnet'),
@@ -36,19 +34,42 @@ const queryClient = new QueryClient({
 
 interface WalletProviderProps {
   children: React.ReactNode;
-  defaultNetwork?: 'testnet' | 'mainnet' | 'devnet' | 'localnet';
+  defaultNetwork?: 'testnet' | 'devnet' | 'localnet';
 }
 
-export const WalletProvider: React.FC<WalletProviderProps> = ({ 
-  children, 
-  defaultNetwork = 'testnet' 
+// Network Sync component to sync network state
+const NetworkSync: React.FC<{ defaultNetwork: string }> = ({ defaultNetwork }) => {
+  const { network, setNetwork, setNetworkConfig } = useConnectionStore();
+
+  useEffect(() => {
+    // Initialize network in store if not set
+    if (!network) {
+      setNetwork(defaultNetwork);
+      setNetworkConfig(NETWORKS[defaultNetwork as keyof typeof NETWORKS]);
+    }
+  }, [network, defaultNetwork, setNetwork, setNetworkConfig]);
+
+  return null;
+};
+
+export const WalletProvider: React.FC<WalletProviderProps> = ({
+  children,
+  defaultNetwork = 'testnet'
 }) => {
   return (
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider 
-        networks={networkConfig} 
+      <SuiClientProvider
+        networks={networkConfig}
         defaultNetwork={defaultNetwork}
+        onNetworkChange={(network) => {
+          console.log('Network changed in SuiClientProvider:', network);
+          // We don't update here as this fires on initial load
+          // and would conflict with our NetworkSync component
+        }}
       >
+        {/* Add NetworkSync component to initialize network in store */}
+        <NetworkSync defaultNetwork={defaultNetwork} />
+
         <DAppKitWalletProvider
           autoConnect={true}
           storage={{

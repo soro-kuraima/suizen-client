@@ -13,10 +13,8 @@ import {
   Settings,
   Users,
   TrendingUp,
-  Clock,
   Shield,
   Activity,
-  Eye,
   Copy,
   Download,
   ExternalLink
@@ -43,6 +41,7 @@ const WalletPage: React.FC = () => {
   const { currentAccount } = useWalletAdapter();
   const selectedWallet = useSelectedWallet();
   const { setSelectedWallet } = useWalletStore();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { data: ownerCaps, isLoading: loadingCaps } = useOwnerCapabilities();
 
   // Set selected wallet from URL param (only once when component mounts or walletId changes)
@@ -68,6 +67,7 @@ const WalletPage: React.FC = () => {
 
   // Check if user is an owner of the selected wallet
   const isOwner = selectedWallet?.owners?.includes(currentAccount?.address || '') || false;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const userOwnerCap = ownerCaps?.find(cap =>
     // Would need to check which wallet this cap belongs to
     true // Simplified for now
@@ -144,12 +144,12 @@ const WalletPage: React.FC = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Wallet List Sidebar */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-1"
+          className="lg:col-span-2"
         >
           <WalletList />
         </motion.div>

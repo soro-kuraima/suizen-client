@@ -191,6 +191,7 @@ export const generateTransactionId = (): string => {
 /**
  * Parse error message from Sui transaction
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const parseErrorMessage = (error: any): string => {
   if (typeof error === 'string') {
     return error;
@@ -221,5 +222,5 @@ export const parseErrorMessage = (error: any): string => {
     }
   }
   
-  return 'Unknown error occurred';
+  return 'any error occurred';
 };

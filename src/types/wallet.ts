@@ -1,4 +1,4 @@
-import { SuiObjectRef, SuiObjectData, ObjectOwner } from '@mysten/sui/client';
+import { SuiObjectData, ObjectOwner } from '@mysten/sui/client';
 
 // Base wallet interfaces
 export interface WalletBalance {

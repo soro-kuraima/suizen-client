@@ -8,12 +8,12 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
-import { 
-  Users, 
-  Plus, 
-  Trash2, 
-  ArrowRight, 
-  ArrowLeft, 
+import {
+  Users,
+  Plus,
+  Trash2,
+  ArrowRight,
+  ArrowLeft,
   AlertCircle,
   User,
   Wallet
@@ -60,7 +60,7 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
   const { currentAccount } = useWalletAdapter();
   const [owners, setOwners] = useState(data.owners);
   const [isAddingOwner, setIsAddingOwner] = useState(false);
-  
+
   const form = useForm<OwnerData>({
     resolver: zodResolver(ownerSchema),
     defaultValues: {
@@ -116,7 +116,7 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
     if (owners.length === 0) {
       return;
     }
-    
+
     if (owners.length < data.requiredApprovals) {
       return;
     }
@@ -138,7 +138,7 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
           Add owners who will have access to this multi-signature wallet
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Current Wallet Quick Add */}
         {currentAccount && !owners.some(o => o.address === currentAccount.address) && (
@@ -169,7 +169,7 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
                 {owners.length >= data.requiredApprovals ? 'Ready' : `Need ${data.requiredApprovals - owners.length} more`}
               </Badge>
             </div>
-            
+
             <div className="space-y-3">
               {owners.map((owner, index) => (
                 <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
@@ -211,7 +211,7 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
         {isAddingOwner ? (
           <div className="border rounded-lg p-4 bg-muted/50">
             <h4 className="font-medium mb-4">Add New Owner</h4>
-            
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmitOwner)} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,7 +228,7 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="spendingLimit"
@@ -236,12 +236,12 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
                       <FormItem>
                         <FormLabel>Spending Limit (SUI)</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
+                          <Input
+                            type="number"
                             step="0.1"
                             min="0.1"
-                            placeholder="1.0" 
-                            {...field} 
+                            placeholder="1.0"
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -249,7 +249,7 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
                     )}
                   />
                 </div>
-                
+
                 <FormField
                   control={form.control}
                   name="address"
@@ -266,12 +266,12 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
                     </FormItem>
                   )}
                 />
-                
+
                 <div className="flex space-x-2">
                   <Button type="submit">Add Owner</Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
                       setIsAddingOwner(false);
                       form.reset();
@@ -324,9 +324,9 @@ export const OwnersSetupForm: React.FC<OwnersSetupFormProps> = ({
             <ArrowLeft className="mr-2 h-4 w-4" />
             Previous
           </Button>
-          
-          <Button 
-            onClick={handleNext} 
+
+          <Button
+            onClick={handleNext}
             disabled={!canProceed}
           >
             Next: Configure Limits

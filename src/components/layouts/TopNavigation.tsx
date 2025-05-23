@@ -1,16 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '../ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { Moon, Sun, Wallet, ChevronDown, Settings, LogOut, Network, Copy } from 'lucide-react';
+import { Moon, Sun, Wallet, ChevronDown, Settings, LogOut, Copy } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { WalletConnection } from '../features/wallet/WalletConnection';
@@ -20,11 +19,11 @@ import { shortenAddress } from '../../utils/sui';
 
 export const TopNavigation: React.FC = () => {
   const { theme, setTheme } = useTheme();
-  const { 
-    connected, 
-    currentAccount, 
-    currentWallet, 
-    disconnect 
+  const {
+    connected,
+    currentAccount,
+    currentWallet,
+    disconnect
   } = useWalletAdapter();
 
   const handleCopyAddress = async () => {
@@ -53,7 +52,7 @@ export const TopNavigation: React.FC = () => {
           </div>
           <span className="text-xl font-bold">Suizen</span>
         </Link>
-        
+
         {/* Network indicator */}
         {connected && (
           <div className="flex items-center space-x-2">
@@ -98,26 +97,26 @@ export const TopNavigation: React.FC = () => {
               <div className="px-2 py-1.5">
                 <p className="text-sm font-medium">Connected to</p>
                 <p className="text-xs text-muted-foreground">
-                  {currentWallet?.name || 'Unknown Wallet'}
+                  {currentWallet?.name || 'any Wallet'}
                 </p>
               </div>
               <DropdownMenuSeparator />
-              
+
               <DropdownMenuItem onClick={handleCopyAddress}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copy Address
               </DropdownMenuItem>
-              
+
               <DropdownMenuItem asChild>
                 <Link to="/settings">
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
                 </Link>
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator />
-              
-              <DropdownMenuItem 
+
+              <DropdownMenuItem
                 onClick={handleDisconnect}
                 className="text-destructive focus:text-destructive"
               >

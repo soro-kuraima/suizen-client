@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,14 +13,10 @@ import {
 } from '../../ui/dialog';
 import {
     Form,
-    FormControl,
-    FormDescription,
     FormField,
     FormItem,
-    FormLabel,
     FormMessage,
 } from '../../ui/form';
-import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { Card, CardContent } from '../../ui/card';
 import { Badge } from '../../ui/badge';
@@ -147,7 +144,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({
             onSuccess?.();
         } catch (error: any) {
             console.error('Deposit failed:', error);
-            toast.error(`Deposit failed: ${error.message || 'Unknown error'}`);
+            toast.error(`Deposit failed: ${error.message || 'any error'}`);
         }
     }, [walletId, selectedCoins, depositMutation, handleOpenChange, onSuccess]);
 
@@ -188,7 +185,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({
             onSuccess?.();
         } catch (error: any) {
             console.error('Form submit deposit failed:', error);
-            toast.error(`Deposit failed: ${error.message || 'Unknown error'}`);
+            toast.error(`Deposit failed: ${error.message || 'any error'}`);
         }
     }, [walletId, selectedCoins, depositMutation, handleOpenChange, onSuccess]);
 
@@ -332,12 +329,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({
                                     </Card>
                                 )}
 
-                                {/* Debug Info */}
-                                {process.env.NODE_ENV === 'development' && (
-                                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                                        Debug: {selectedCoins.length} coins selected: {selectedCoins.map(id => id.slice(0, 6)).join(', ')}
-                                    </div>
-                                )}
+
 
                                 {/* Action Buttons */}
                                 <div className="flex justify-end space-x-3">

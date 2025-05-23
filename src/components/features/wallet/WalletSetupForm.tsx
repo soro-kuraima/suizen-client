@@ -9,7 +9,7 @@ import { Input } from '../../ui/input';
 import { Textarea } from '../../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Badge } from '../../ui/badge';
-import { Shield, Users, ArrowRight, Info } from 'lucide-react';
+import { Shield, ArrowRight, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '../../ui/alert';
 
 const walletSetupSchema = z.object({
@@ -26,6 +26,7 @@ interface WalletSetupFormProps {
     description: string;
     requiredApprovals: number;
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onUpdate: (updates: Partial<any>) => void;
   onNext: () => void;
 }
@@ -62,7 +63,7 @@ export const WalletSetupForm: React.FC<WalletSetupFormProps> = ({
           Configure your multi-owner wallet's basic settings and security requirements
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -74,9 +75,9 @@ export const WalletSetupForm: React.FC<WalletSetupFormProps> = ({
                 <FormItem>
                   <FormLabel>Wallet Name</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="e.g., Team Treasury, Family Savings" 
-                      {...field} 
+                    <Input
+                      placeholder="e.g., Team Treasury, Family Savings"
+                      {...field}
                     />
                   </FormControl>
                   <FormDescription>
@@ -95,10 +96,10 @@ export const WalletSetupForm: React.FC<WalletSetupFormProps> = ({
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="Brief description of the wallet's purpose..."
                       className="min-h-[80px]"
-                      {...field} 
+                      {...field}
                     />
                   </FormControl>
                   <FormDescription>
@@ -116,8 +117,8 @@ export const WalletSetupForm: React.FC<WalletSetupFormProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Required Approvals for Large Transactions</FormLabel>
-                  <Select 
-                    value={field.value.toString()} 
+                  <Select
+                    value={field.value.toString()}
                     onValueChange={(value) => field.onChange(parseInt(value))}
                   >
                     <FormControl>

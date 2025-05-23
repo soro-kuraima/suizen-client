@@ -1,4 +1,4 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiClient } from '@mysten/sui/client';
 import { NETWORKS, DEFAULT_NETWORK } from '../constants/config';
 
 /**

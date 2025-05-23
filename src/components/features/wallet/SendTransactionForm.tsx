@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Improved version of src/components/features/wallet/SendTransactionForm.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -41,7 +42,6 @@ import {
 import { useWalletAdapter } from '../../../hooks/useWalletAdapter';
 import { validateAndNormalizeSuiAddress, formatSuiAmount, mistToSui } from '../../../utils/sui';
 import { toast } from 'sonner';
-import { ScrollArea } from '@radix-ui/react-scroll-area';
 
 const sendTransactionSchema = z.object({
   recipient: z.string().min(1, 'Recipient address is required').refine(
@@ -315,26 +315,6 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
         </DialogHeader>
 
         <div className="space-y-6 overflow-auto">
-          {/* Debug Info */}
-          {showDebug && (
-            <Card className="bg-muted/50">
-              <CardContent className="p-4">
-                <div className="text-xs space-y-1">
-                  <div><strong>Debug Info:</strong></div>
-                  <div>Wallet ID: {walletId}</div>
-                  <div>User: {currentAddress}</div>
-                  <div>Is Owner: {isOwner ? 'Yes' : 'No'}</div>
-                  <div>Owner Cap: {ownerCapId || 'None'}</div>
-                  <div>Spending Record: {spendingRecord ? 'Found' : 'Not found'}</div>
-                  <div>Spent: {spendingData.spent} SUI</div>
-                  <div>Limit: {spendingData.limit} SUI</div>
-                  <div>Available: {availableLimit} SUI</div>
-                  <div>Exceeds Limit: {exceedsLimit ? 'Yes' : 'No'}</div>
-                  <div>Requires Multi-Sig: {requiresMultiSig ? 'Yes' : 'No'}</div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Transaction Type Tabs */}
           <Tabs value={transactionType} onValueChange={(v) => setTransactionType(v as any)}>

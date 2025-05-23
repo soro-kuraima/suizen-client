@@ -167,7 +167,7 @@ export const useWalletAdapter = () => {
       });
 
       if (fullTransaction.effects?.status?.status !== 'success') {
-        throw new Error(`Transaction failed: ${fullTransaction.effects?.status?.error || 'Unknown error'}`);
+        throw new Error(`Transaction failed: ${fullTransaction.effects?.status?.error || 'any error'}`);
       }
 
       return fullTransaction;

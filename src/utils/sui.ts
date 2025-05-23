@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { isValidSuiAddress, normalizeSuiAddress } from '@mysten/sui/utils';
 import { SuiObjectData, SuiObjectResponse } from '@mysten/sui/client';
 import { COIN_TYPES } from '../constants/config';
@@ -90,7 +91,7 @@ export const isObjectValid = (response: SuiObjectResponse): boolean => {
  * Get object ID from object reference
  */
 export const getObjectId = (obj: SuiObjectData | { objectId: string }): string => {
-  return 'objectId' in obj ? obj.objectId : obj.objectId;
+  return 'objectId' in obj ? obj.objectId : obj;
 };
 
 /**
@@ -147,16 +148,32 @@ export const hasSpendingLimitReset = (lastReset: number, resetPeriodMs: number):
 /**
  * Calculate remaining time until reset
  */
+/**
+ * Calculate remaining time until reset
+ */
 export const getTimeUntilReset = (lastReset: number, resetPeriodMs: number): number => {
-  const nextReset = getNextResetTime(lastReset, resetPeriodMs);
   const now = Date.now();
-  return Math.max(0, nextReset - now);
+  
+  // Calculate when the next reset will occur
+  // We need to find the next reset point after the last reset
+  const msElapsedSinceLastReset = now - lastReset;
+  const periodsElapsed = Math.floor(msElapsedSinceLastReset / resetPeriodMs);
+  const nextResetTime = lastReset + ((periodsElapsed + 1) * resetPeriodMs);
+  
+  // Return the time remaining until next reset
+  return Math.max(0, nextResetTime - now);
 };
 
 /**
  * Format duration in milliseconds to human readable string
+ * Updated to handle large values more gracefully
  */
 export const formatDuration = (durationMs: number): string => {
+  // Handle potential errors or extreme values
+  if (!durationMs || isNaN(durationMs) || durationMs < 0 || durationMs > 31536000000) { // > 1 year
+    return "any";
+  }
+  
   const seconds = Math.floor(durationMs / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -180,6 +197,7 @@ export const parseCoinBalance = (coinObject: any): { balance: string; coinType: 
   }
   return { balance: '0', coinType: COIN_TYPES.SUI };
 };
+
 
 /**
  * Create a delay promise

@@ -1,17 +1,16 @@
+// Updated src/components/layouts/Sidebar.tsx with removed navigation items
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
-import { 
-  Wallet, 
-  Send, 
-  History, 
-  Users, 
-  FileText, 
+import {
+  Wallet,
+  Home,
+  Users,
   Settings,
-  Plus,
-  Home
+  Plus
 } from 'lucide-react';
 import { useWalletStore } from '../../store/walletStore';
 import { formatSuiAmount } from '../../utils/sui';
@@ -23,6 +22,7 @@ interface NavItem {
   badge?: string | number;
 }
 
+// Removed Transactions and Proposals from mainNavItems
 const mainNavItems: NavItem[] = [
   {
     title: 'Home',
@@ -33,16 +33,6 @@ const mainNavItems: NavItem[] = [
     title: 'Wallets',
     href: '/wallet',
     icon: Wallet,
-  },
-  {
-    title: 'Transactions',
-    href: '/transactions',
-    icon: History,
-  },
-  {
-    title: 'Proposals',
-    href: '/proposals',
-    icon: FileText,
   },
 ];
 
@@ -100,7 +90,6 @@ const WalletList: React.FC = () => {
   const wallets = useWalletStore((state) => state.wallets);
   const selectedWalletId = useWalletStore((state) => state.selectedWalletId);
   const setSelectedWallet = useWalletStore((state) => state.setSelectedWallet);
-  const location = useLocation();
 
   if (wallets.length === 0) {
     return (
@@ -129,7 +118,7 @@ const WalletList: React.FC = () => {
           <Plus className="h-3 w-3" />
         </Link>
       </div>
-      
+
       <div className="space-y-1">
         {wallets.map((wallet) => (
           <button
@@ -170,22 +159,22 @@ export const Sidebar: React.FC = () => {
       <div className="p-6">
         <h2 className="text-lg font-semibold">Navigation</h2>
       </div>
-      
+
       <div className="flex-1 overflow-auto px-2">
         {/* Main Navigation */}
         <SidebarNav items={mainNavItems} />
-        
+
         <Separator className="my-4" />
-        
+
         {/* Wallet List */}
         <WalletList />
-        
+
         <Separator className="my-4" />
-        
+
         {/* Secondary Navigation */}
         <SidebarNav items={secondaryNavItems} />
       </div>
-      
+
       {/* Footer */}
       <div className="border-t border-border p-4">
         <div className="text-xs text-muted-foreground">
