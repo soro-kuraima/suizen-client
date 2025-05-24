@@ -8,7 +8,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
   testnet: {
     name: 'Sui Testnet',
     rpcUrl: 'https://fullnode.testnet.sui.io:443',
-    packageAddress: '0x...', // Replace with your deployed package address
+    packageAddress: '0x7560c615269d0fc3096e3f7b2cea26c22bb4aa01e0e37be53cd9ee45e527edb0', // Replace with your deployed package address
     explorerUrl: 'https://explorer.sui.io/?network=testnet',
   },
   devnet: {

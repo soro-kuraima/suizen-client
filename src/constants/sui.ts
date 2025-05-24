@@ -5,7 +5,7 @@ export const SUI_NETWORK = {
   MAINNET: 'https://fullnode.mainnet.sui.io:443',
 } as const;
 
-export const PACKAGE_ID = process.env.VITE_PACKAGE_ID || '0x...'; // Your deployed package ID
+export const PACKAGE_ID = process.env.VITE_PACKAGE_ID || '0x7560c615269d0fc3096e3f7b2cea26c22bb4aa01e0e37be53cd9ee45e527edb0'; // Your deployed package ID
 
 export const MODULE_NAMES = {
   MULTI_OWNER_WALLET: 'multi_owner_wallet',

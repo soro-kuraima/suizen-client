@@ -226,13 +226,6 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ walletId
                           <ExternalLink className="h-3 w-3" />
                         </Button>
                       </div>
-
-                      {/* Amount in MIST (Development Debug) */}
-                      {process.env.NODE_ENV === 'development' && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {tx.amount} MIST
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>

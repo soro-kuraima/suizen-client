@@ -299,15 +299,6 @@ export const SendTransactionForm: React.FC<SendTransactionFormProps> = ({
               <Send className="mr-2 h-5 w-5" />
               Send Transaction
             </div>
-            {process.env.NODE_ENV === 'development' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDebug(!showDebug)}
-              >
-                <Bug className="h-4 w-4" />
-              </Button>
-            )}
           </DialogTitle>
           <DialogDescription>
             Send SUI from your multi-owner wallet

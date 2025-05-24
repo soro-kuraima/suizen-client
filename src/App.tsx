@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from './components/ui/sonner';
 import { WalletProvider } from './providers/WalletProvider';
@@ -54,13 +53,6 @@ function App() {
             </div>
           </WalletProvider>
         </BrowserRouter>
-
-        {/* React Query Devtools - only in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools
-            initialIsOpen={false}
-          />
-        )}
       </QueryClientProvider>
     </ThemeProvider>
   );
