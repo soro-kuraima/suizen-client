@@ -1,7 +1,7 @@
 //import { getCurrentNetwork } from '../config/sui-client';
 import { NetworkConfig } from '../types/wallet';
 
-export const DEFAULT_NETWORK = 'devnet';
+export const DEFAULT_NETWORK = 'testnet';
 
 // Network configurations
 export const NETWORKS: Record<string, NetworkConfig> = {
@@ -10,18 +10,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     rpcUrl: 'https://fullnode.testnet.sui.io:443',
     packageAddress: '0x7560c615269d0fc3096e3f7b2cea26c22bb4aa01e0e37be53cd9ee45e527edb0', // Replace with your deployed package address
     explorerUrl: 'https://explorer.sui.io/?network=testnet',
-  },
-  devnet: {
-    name: 'Sui Devnet',
-    rpcUrl: 'https://fullnode.devnet.sui.io:443',
-    packageAddress: '0x95d889f983104d61c5b6145a0c6a1028882048d8c7f62f439951906c1e3e95ea', // Replace with your deployed package address
-    explorerUrl: 'https://explorer.sui.io/?network=devnet',
-  },
-  localnet: {
-    name: 'Local Network',
-    rpcUrl: 'http://127.0.0.1:9000',
-    packageAddress: '0x...', // Replace with your local package address
-    explorerUrl: 'http://localhost:3000',
   },
 };
 

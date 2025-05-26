@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { 
   useCurrentAccount,
   useCurrentWallet,
@@ -141,42 +141,72 @@ export const useWalletAdapter = () => {
   }, [signTransaction, currentAccount]);
 
   // Sign and execute transaction
-  const handleSignAndExecuteTransaction = useCallback(async (
-    transaction: Transaction
-  ): Promise<SuiTransactionBlockResponse> => {
-    if (!currentAccount) {
-      throw new Error('No wallet connected');
-    }
+ const handleSignAndExecuteTransaction = useCallback(async (
+  transaction: Transaction
+): Promise<SuiTransactionBlockResponse> => {
+  if (!currentAccount) {
+    throw new Error('No wallet connected');
+  }
 
-    try {
-      const result = await signAndExecuteTransaction({
-        transaction,
-        account: currentAccount,
-      });
+  try {
+    const result = await signAndExecuteTransaction({
+      transaction,
+      account: currentAccount,
+    });
 
-      // The dApp Kit returns a different structure, so we need to fetch the full transaction
-      // using the digest to get the proper SuiTransactionBlockResponse
-      const fullTransaction = await suiClient.getTransactionBlock({
-        digest: result.digest,
-        options: {
-          showEffects: true,
-          showEvents: true,
-          showObjectChanges: true,
-          showBalanceChanges: true,
-        },
-      });
+    console.log('✅ Transaction submitted:', result.digest);
 
-      if (fullTransaction.effects?.status?.status !== 'success') {
-        throw new Error(`Transaction failed: ${fullTransaction.effects?.status?.error || 'any error'}`);
+    // Retry getTransactionBlock for 8 seconds, checking every 500ms
+    const maxAttempts = 16; // 8 seconds / 500ms = 16 attempts
+    const delayMs = 500;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`🔍 Fetching transaction details (attempt ${attempt}/${maxAttempts})...`);
+        
+        const fullTransaction = await suiClient.getTransactionBlock({
+          digest: result.digest,
+          options: {
+            showEffects: true,
+            showEvents: true,
+            showObjectChanges: true,
+            showBalanceChanges: true,
+          },
+        });
+
+        console.log('✅ Transaction details retrieved successfully!');
+        console.log(fullTransaction);
+        console.log(fullTransaction.effects);
+
+        if (fullTransaction.effects?.status?.status !== 'success') {
+          if (attempt < maxAttempts) {
+            console.log(`⏳ Transaction not indexed yet, waiting ${delayMs}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            continue;
+          }
+        }
+
+        return fullTransaction;
+
+      } catch (error) {
+        const isNotFound = error.message?.includes('not found') || 
+                          error.message?.includes('digest') ||
+                          error.status === 404;
+
+        if (isNotFound && attempt < maxAttempts) {
+          throw new Error(`Transaction failed: ${error || 'Unknown error'}`);
+        }
       }
-
-      return fullTransaction;
-    } catch (error) {
-      console.error('Transaction execution failed:', error);
-      throw error;
     }
-  }, [signAndExecuteTransaction, currentAccount, suiClient]);
 
+    // If we get here, we've exhausted all retries
+    throw new Error(`Transaction ${result.digest} not found after ${(maxAttempts * delayMs) / 1000} seconds`);
+
+  } catch (error) {
+    console.error('❌ Transaction execution failed:', error);
+    throw error;
+  }
+}, [signAndExecuteTransaction, currentAccount, suiClient]);
   // Get current accounts
   const getAccounts = useCallback(async (): Promise<string[]> => {
     if (!currentAccount) {

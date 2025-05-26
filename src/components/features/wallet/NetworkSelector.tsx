@@ -15,9 +15,6 @@ import { useConnectionStore } from '../../../store/connectionStore';
 
 const NETWORK_NAMES = {
   testnet: 'Testnet',
-  mainnet: 'Mainnet',
-  devnet: 'Devnet',
-  localnet: 'Localnet',
 };
 
 const NETWORK_BADGES = {

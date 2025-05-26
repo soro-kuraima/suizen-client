@@ -1,8 +1,6 @@
 // constants/sui.ts
 export const SUI_NETWORK = {
-  DEVNET: 'https://fullnode.devnet.sui.io:443',
   TESTNET: 'https://fullnode.testnet.sui.io:443',
-  MAINNET: 'https://fullnode.mainnet.sui.io:443',
 } as const;
 
 export const PACKAGE_ID = process.env.VITE_PACKAGE_ID || '0x7560c615269d0fc3096e3f7b2cea26c22bb4aa01e0e37be53cd9ee45e527edb0'; // Your deployed package ID

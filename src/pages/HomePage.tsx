@@ -208,6 +208,9 @@ const HomePage: React.FC = () => {
       {/* Hero Section */}
       <section className="relative py-20 px-4">
         <div className="max-w-6xl mx-auto text-center">
+          <div className='flex items-center justify-center'>
+            <img className='' src='/logo.png' />
+          </div>
           <Badge variant="outline" className="mb-4">
             Built on Sui Blockchain
           </Badge>

@@ -14,12 +14,6 @@ const { networkConfig } = createNetworkConfig({
   testnet: {
     url: getFullnodeUrl('testnet'),
   },
-  devnet: {
-    url: getFullnodeUrl('devnet'),
-  },
-  localnet: {
-    url: NETWORKS.localnet.rpcUrl,
-  },
 });
 
 // Query client for wallet provider
@@ -34,7 +28,7 @@ const queryClient = new QueryClient({
 
 interface WalletProviderProps {
   children: React.ReactNode;
-  defaultNetwork?: 'testnet' | 'devnet' | 'localnet';
+  defaultNetwork?: 'testnet';
 }
 
 // Network Sync component to sync network state
