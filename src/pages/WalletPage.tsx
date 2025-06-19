@@ -144,7 +144,7 @@ const WalletPage: React.FC = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl">
         {/* Wallet List Sidebar */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -158,7 +158,7 @@ const WalletPage: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-3"
+          className="lg:col-span-2"
         >
           {selectedWallet ? (
             <div className="space-y-6">

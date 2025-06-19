@@ -3,7 +3,7 @@ export const SUI_NETWORK = {
   DEVNET: 'https://fullnode.devnet.sui.io:443',
 } as const;
 
-export const PACKAGE_ID = '0xa6bcb0dd1b17181319b8aa85e244d559628e4824f604a92efd99253aa65d4e01'; // Your deployed package ID
+export const PACKAGE_ID = import.meta.env.VITE_PACKAGE_ADDRESS_DEVNET// Your deployed package ID
 
 console.log()
 export const MODULE_NAMES = {

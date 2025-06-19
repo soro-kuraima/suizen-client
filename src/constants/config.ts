@@ -8,7 +8,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
   devnet: {
     name: 'Sui Devnet',
     rpcUrl: 'https://fullnode.devnet.sui.io:443',
-    packageAddress: '0xa6bcb0dd1b17181319b8aa85e244d559628e4824f604a92efd99253aa65d4e01',
+    packageAddress: import.meta.env.VITE_PACKAGE_ADDRESS_DEVNET,
     explorerUrl: 'https://explorer.sui.io/?network=devnet',
   }
 };

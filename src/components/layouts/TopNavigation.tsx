@@ -48,7 +48,7 @@ export const TopNavigation: React.FC = () => {
       <div className="flex items-center space-x-4">
         <Link to="/" className="flex items-center space-x-2">
           <div className="flex h-20 w-20 items-center justify-center rounded-lg text-primary-foreground">
-            <img className='' src='/logo.png' />
+            <img className='' src='/logo-text.png' />
           </div>
         </Link>
 

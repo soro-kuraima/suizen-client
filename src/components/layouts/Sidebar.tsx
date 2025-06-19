@@ -156,8 +156,8 @@ const WalletList: React.FC = () => {
 export const Sidebar: React.FC = () => {
   return (
     <div className="flex h-full w-full flex-col border-r border-border bg-card">
-      <div className="p-6">
-        <img className='h-16' src='/logo.png' />
+      <div className="p-1">
+        <img className='h-32' src='/logo.png' />
       </div>
 
       <div className="flex-1 overflow-auto px-2">
