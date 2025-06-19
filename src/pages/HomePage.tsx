@@ -51,7 +51,7 @@ const HomePage: React.FC = () => {
 
   // Calculate stats
   const totalWallets = userWallets.length;
-  const networkName = networkConfig.name || 'Testnet';
+  const networkName = networkConfig.name || 'Devnet';
 
   const features = [
     {
@@ -156,9 +156,9 @@ const HomePage: React.FC = () => {
               </div>
               <p className="text-xs text-muted-foreground">
                 Connected to {networkName}
-                {networkName.toLowerCase() === 'testnet' && (
+                {networkName.toLowerCase() === 'devnet' && (
                   <Badge variant="secondary" className="ml-2 text-xs">
-                    Test Network
+                    Network
                   </Badge>
                 )}
               </p>

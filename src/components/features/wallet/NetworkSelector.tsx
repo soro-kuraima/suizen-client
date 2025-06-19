@@ -14,7 +14,7 @@ import { switchNetwork as updateSuiClientNetwork } from '../../../config/sui-cli
 import { useConnectionStore } from '../../../store/connectionStore';
 
 const NETWORK_NAMES = {
-  testnet: 'Testnet',
+  devnet: 'Devnet'
 };
 
 const NETWORK_BADGES = {

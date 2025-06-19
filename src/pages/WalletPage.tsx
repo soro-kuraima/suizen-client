@@ -60,7 +60,7 @@ const WalletPage: React.FC = () => {
 
   const handleViewOnExplorer = () => {
     if (selectedWallet) {
-      const explorerUrl = `https://explorer.sui.io/object/${selectedWallet.objectId}?network=testnet`;
+      const explorerUrl = `https://explorer.sui.io/object/${selectedWallet.objectId}?network=devnet`;
       window.open(explorerUrl, '_blank');
     }
   };

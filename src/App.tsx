@@ -40,7 +40,7 @@ function App() {
     >
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <WalletProvider defaultNetwork="testnet">
+          <WalletProvider defaultNetwork="devnet">
             <div className="min-h-screen bg-background font-sans antialiased">
               <AppRoutes />
               <Toaster

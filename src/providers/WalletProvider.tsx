@@ -11,8 +11,8 @@ import { useConnectionStore } from '../store/connectionStore';
 
 // Create network configuration
 const { networkConfig } = createNetworkConfig({
-  testnet: {
-    url: getFullnodeUrl('testnet'),
+  devnet: {
+    url: getFullnodeUrl('devnet'),
   },
 });
 
@@ -28,7 +28,7 @@ const queryClient = new QueryClient({
 
 interface WalletProviderProps {
   children: React.ReactNode;
-  defaultNetwork?: 'testnet';
+  defaultNetwork?: "devnet";
 }
 
 // Network Sync component to sync network state
@@ -48,7 +48,7 @@ const NetworkSync: React.FC<{ defaultNetwork: string }> = ({ defaultNetwork }) =
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({
   children,
-  defaultNetwork = 'testnet'
+  defaultNetwork = 'devnet'
 }) => {
   return (
     <QueryClientProvider client={queryClient}>

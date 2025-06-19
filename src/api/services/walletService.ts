@@ -29,6 +29,7 @@ export class WalletService {
     const tx = new Transaction();
     console.log(request.initialLimits);
     const limitsInMist = request.initialLimits.map(limit => suiToMist(limit));
+    console.log(this.networkConfig.packageAddress);
 
     tx.moveCall({
       package: this.networkConfig.packageAddress,

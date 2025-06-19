@@ -1,10 +1,11 @@
 // constants/sui.ts
 export const SUI_NETWORK = {
-  TESTNET: 'https://fullnode.testnet.sui.io:443',
+  DEVNET: 'https://fullnode.devnet.sui.io:443',
 } as const;
 
-export const PACKAGE_ID = process.env.VITE_PACKAGE_ID || '0x7560c615269d0fc3096e3f7b2cea26c22bb4aa01e0e37be53cd9ee45e527edb0'; // Your deployed package ID
+export const PACKAGE_ID = '0xa6bcb0dd1b17181319b8aa85e244d559628e4824f604a92efd99253aa65d4e01'; // Your deployed package ID
 
+console.log()
 export const MODULE_NAMES = {
   MULTI_OWNER_WALLET: 'multi_owner_wallet',
   INVOICE: 'invoice',

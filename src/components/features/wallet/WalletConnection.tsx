@@ -198,7 +198,7 @@ export const WalletConnection: React.FC = () => {
                 <strong>First time using Sui?</strong><br />
                 1. Install a wallet extension<br />
                 2. Create or import your account<br />
-                3. Make sure you're on the correct network (Testnet/Mainnet)
+                3. Make sure you're on the correct network (Testnet/Devnet)
               </AlertDescription>
             </Alert>
             

@@ -1,16 +1,16 @@
 //import { getCurrentNetwork } from '../config/sui-client';
 import { NetworkConfig } from '../types/wallet';
 
-export const DEFAULT_NETWORK = 'testnet';
+export const DEFAULT_NETWORK = 'devnet';
 
 // Network configurations
 export const NETWORKS: Record<string, NetworkConfig> = {
-  testnet: {
-    name: 'Sui Testnet',
-    rpcUrl: 'https://fullnode.testnet.sui.io:443',
-    packageAddress: '0x7560c615269d0fc3096e3f7b2cea26c22bb4aa01e0e37be53cd9ee45e527edb0', // Replace with your deployed package address
-    explorerUrl: 'https://explorer.sui.io/?network=testnet',
-  },
+  devnet: {
+    name: 'Sui Devnet',
+    rpcUrl: 'https://fullnode.devnet.sui.io:443',
+    packageAddress: '0xa6bcb0dd1b17181319b8aa85e244d559628e4824f604a92efd99253aa65d4e01',
+    explorerUrl: 'https://explorer.sui.io/?network=devnet',
+  }
 };
 
 // Coin types

@@ -28,7 +28,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ walletId
   const { data: historyData, isLoading } = useTransactionHistory(walletId);
 
   const handleViewOnExplorer = (digest: string) => {
-    const explorerUrl = `https://explorer.sui.io/txblock/${digest}?network=testnet`;
+    const explorerUrl = `https://explorer.sui.io/txblock/${digest}?network=devnet`;
     window.open(explorerUrl, '_blank');
   };
 
