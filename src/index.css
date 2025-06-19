@@ -3,6 +3,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Force refresh - Professional Teal Theme */
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -41,102 +43,104 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Updated with Neon Theme colors */
+/* Updated with Professional Teal Theme based on logo colors */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* Electric Blue primary */
-  --primary: oklch(0.60 0.25 255);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  /* Light neon accent */
-  --accent: oklch(0.85 0.15 260);
-  --accent-foreground: oklch(0.205 0 0);
-  /* Neon red for destructive */
-  --destructive: oklch(0.65 0.30 25);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.60 0.25 255);
-  /* Chart colors - neon palette */
-  --chart-1: oklch(0.65 0.28 220); /* Electric blue */
-  --chart-2: oklch(0.65 0.25 285); /* Neon purple */
-  --chart-3: oklch(0.65 0.25 145); /* Neon green */
-  --chart-4: oklch(0.65 0.30 25);  /* Neon red */
-  --chart-5: oklch(0.65 0.25 65);  /* Neon orange */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.60 0.25 255);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #f9fafb;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  /* Primary teal from logo #2d8c8e */
+  --primary: #2d8c8e;
+  --primary-foreground: #ffffff;
+  --secondary: #f8fafc;
+  --secondary-foreground: #1e293b;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  /* Strong visible accent for selected states */
+  --accent: #22d3ee;
+  --accent-foreground: #0f172a;
+  /* Destructive red with good contrast */
+  --destructive: #dc2626;
+  --border: #d1d5db;
+  --input: #e5e7eb;
+  --ring: #2d8c8e;
+  /* Chart colors - harmonious with teal theme */
+  --chart-1: #2d8c8e; /* Primary teal */
+  --chart-2: #27525b; /* Dark teal from logo */
+  --chart-3: #10b981; /* Emerald green */
+  --chart-4: #f59e0b; /* Amber */
+  --chart-5: #6366f1; /* Indigo */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #2d8c8e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #22d3ee;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #d1d5db;
+  --sidebar-ring: #2d8c8e;
 }
 
 .dark {
-  --background: oklch(0.125 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.175 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.175 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  /* Electric Blue primary with more saturation for dark mode */
-  --primary: oklch(0.65 0.30 255);
-  --primary-foreground: oklch(0.125 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  /* Neon purple accent for dark mode */
-  --accent: oklch(0.65 0.30 285);
-  --accent-foreground: oklch(0.125 0 0);
-  /* Brighter neon red for dark mode */
-  --destructive: oklch(0.70 0.35 25);
-  --border: oklch(1 0 0 / 15%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.65 0.30 255);
-  /* Chart colors - brighter neon for dark mode */
-  --chart-1: oklch(0.70 0.35 255); /* Electric blue */
-  --chart-2: oklch(0.70 0.35 285); /* Neon purple */
-  --chart-3: oklch(0.70 0.35 145); /* Neon green */
-  --chart-4: oklch(0.70 0.35 25);  /* Neon red */
-  --chart-5: oklch(0.70 0.35 65);  /* Neon orange */
-  --sidebar: oklch(0.175 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.65 0.30 255);
-  --sidebar-primary-foreground: oklch(0.125 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 15%);
-  --sidebar-ring: oklch(0.65 0.30 255);
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --popover: #1e293b;
+  --popover-foreground: #f8fafc;
+  /* Lighter teal for better contrast on dark backgrounds */
+  --primary: #5ebbbd;
+  --primary-foreground: #0f172a;
+  --secondary: #334155;
+  --secondary-foreground: #f8fafc;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  /* Dark teal accent with good contrast */
+  --accent: #27525b;
+  --accent-foreground: #f8fafc;
+  /* Bright red for destructive actions */
+  --destructive: #ef4444;
+  --border: #475569;
+  --input: #475569;
+  --ring: #5ebbbd;
+  /* Chart colors - optimized for dark mode */
+  --chart-1: #5ebbbd; /* Light teal */
+  --chart-2: #7dd3fc; /* Sky blue */
+  --chart-3: #34d399; /* Emerald */
+  --chart-4: #fbbf24; /* Amber */
+  --chart-5: #a78bfa; /* Violet */
+  --sidebar: #1e293b;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #5ebbbd;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #475569;
+  --sidebar-ring: #5ebbbd;
 }
 
-/* Add some glow effects for neon appearance */
+/* Subtle professional effects */
+.btn-primary,
+.bg-primary {
+  box-shadow: 0 2px 8px rgba(45, 140, 142, 0.2);
+}
+
 .dark .btn-primary,
-.dark .bg-primary,
-.dark .text-primary,
-.dark .border-primary {
-  box-shadow: 0 0 10px rgba(120, 120, 255, 0.5);
+.dark .bg-primary {
+  box-shadow: 0 2px 8px rgba(94, 187, 189, 0.25);
 }
 
 .dark .btn-accent,
-.dark .bg-accent,
-.dark .text-accent,
-.dark .border-accent {
-  box-shadow: 0 0 10px rgba(180, 100, 255, 0.5);
+.dark .bg-accent {
+  box-shadow: 0 2px 8px rgba(39, 82, 91, 0.25);
 }
 
-/* Subtle glow on cards in dark mode */
+/* Enhanced card styling for better depth */
 .dark .card {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(148, 163, 184, 0.1);
+  border: 1px solid var(--border);
 }
 
 /* Button hover effects */
@@ -163,46 +167,46 @@
   transition: all 0.2s ease;
 }
 
-/* Gradient animation for primary elements in dark mode */
-@keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.dark .gradient-animate {
-  background: linear-gradient(-45deg, var(--primary), var(--accent), var(--chart-3));
-  background-size: 200% 200%;
-  animation: gradient-shift 3s ease infinite;
-}
-
-/* Make focused elements pop with a glow effect in dark mode */
-.dark *:focus {
-  box-shadow: 0 0 0 2px var(--primary), 0 0 15px rgba(120, 120, 255, 0.5);
+/* Professional hover and focus states */
+*:focus-visible {
+  box-shadow: 0 0 0 2px var(--primary);
   outline: none;
 }
 
-/* Pulsing animation for important elements */
-@keyframes pulse-glow {
-  0% {
-    box-shadow: 0 0 5px rgba(120, 120, 255, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 15px rgba(120, 120, 255, 0.8);
-  }
-  100% {
-    box-shadow: 0 0 5px rgba(120, 120, 255, 0.5);
-  }
+/* Light theme focus improvements */
+:root *:focus-visible {
+  box-shadow: 0 0 0 2px #2d8c8e, 0 0 0 4px rgba(45, 140, 142, 0.2);
 }
 
-.dark .pulse-effect {
-  animation: pulse-glow 2s infinite;
+.dark *:focus-visible {
+  box-shadow: 0 0 0 2px var(--primary);
+  outline: none;
+}
+
+/* Smooth transitions for interactive elements */
+.btn, .card, .badge, .input {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Professional gradient for special elements */
+.gradient-professional {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+/* Enhanced button states */
+.btn-primary:hover {
+  background-color: #236b6d;
+  box-shadow: 0 4px 12px rgba(45, 140, 142, 0.4);
+}
+
+.dark .btn-primary:hover {
+  background-color: #6bc5c7;
+  box-shadow: 0 4px 12px rgba(94, 187, 189, 0.3);
+}
+
+/* Enhanced tab styling for light theme only */
+:root:not(.dark) [data-slot="tabs-trigger"][data-state=active] {
+  border: 2px solid #2d8c8e !important;
 }
 
 * {

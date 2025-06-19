@@ -43,7 +43,7 @@ export const TopNavigation: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center justify-between px-6 py-4">
+    <div className="flex items-center justify-between px-6 py-2">
       {/* Left side - Logo and title */}
       <div className="flex items-center space-x-4">
         <Link to="/" className="flex items-center space-x-2">

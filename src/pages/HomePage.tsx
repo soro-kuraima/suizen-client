@@ -206,10 +206,10 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative py-20 px-4">
+      <section className="relative py-4 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <div className='flex items-center justify-center'>
-            <img className='' src='/logo.png' />
+            <img className='h-48 w-48' src='/logo.png' />
           </div>
           <Badge variant="outline" className="mb-4">
             Built on Sui Blockchain
@@ -305,10 +305,10 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-primary text-primary-foreground">
+      <section className="py-20">
         <div className="max-w-4xl mx-auto text-center px-4">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
-          <p className="text-lg mb-8 text-primary-foreground/80">
+          <p className="text-lg mb-8">
             Connect your wallet and create your first multi-signature wallet in minutes
           </p>
 
